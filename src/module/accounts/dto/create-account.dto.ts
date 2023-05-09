@@ -1,1 +1,4 @@
-export class CreateAccountDto {}
+export class CreateAccountDto {
+  accountNumber: string;
+  balance: string;
+}

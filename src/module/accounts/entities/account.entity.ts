@@ -17,7 +17,10 @@ export class Account {
   accountNumber: string;
 
   @Column()
-  balance: number;
+  balance: string;
+
+  @Column()
+  createAt: Date;
 
   @ManyToOne(() => User, (user) => user.accounts)
   user: User;
