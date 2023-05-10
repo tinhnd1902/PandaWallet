@@ -12,15 +12,14 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
   async validateUser(username: string, password: string): Promise<any> {
-    const infoUser = await this.usersService.findOneByUsername(username);
-    if (infoUser && bcrypt.compareSync(password, infoUser.password)) {
-      const { ...result } = infoUser;
-      return result;
+    const User = await this.usersService.findOneByUsername(username);
+    if (User && bcrypt.compareSync(password, User.password)) {
+      return 'Validate Done';
     }
     return null;
   }
 
-  async verifyToken(token: string): Promise<any> {
+  verifyToken(token: string) {
     try {
       return this.jwtService.verify(token);
     } catch (error) {

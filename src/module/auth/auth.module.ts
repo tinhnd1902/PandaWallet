@@ -1,17 +1,18 @@
-import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './jwt.strategy';
-import { UsersService } from '../users/users.service';
-import { AccountsService } from '../accounts/accounts.service';
-import { ProfileService } from '../profile/profile.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
-import { Profile } from '../profile/entities/profile.entity';
-import { Account } from '../accounts/entities/account.entity';
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import * as dotenv from 'dotenv';
+
+import { AccountsService } from '../accounts/accounts.service';
+import { Account } from '../accounts/entities/account.entity';
+import { Profile } from '../profile/entities/profile.entity';
+import { ProfileService } from '../profile/profile.service';
+import { UsersService } from '../users/users.service';
+import { User } from '../users/entities/user.entity';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './jwt.strategy';
 
 dotenv.config();
 

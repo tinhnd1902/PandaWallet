@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
+
 import { Account } from '../../accounts/entities/account.entity';
 import { Transaction } from '../../transations/entities/transation.entity';
 import { Profile } from '../../profile/entities/profile.entity';

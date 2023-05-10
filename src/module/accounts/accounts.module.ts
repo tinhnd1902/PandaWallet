@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
-import { AccountsService } from './accounts.service';
-import { AccountsController } from './accounts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Account } from './entities/account.entity';
-import { TransactionsModule } from '../transations/transations.module';
-import { UsersModule } from '../users/users.module';
-import { User } from '../users/entities/user.entity';
+import { Module } from '@nestjs/common';
+
 import { Transaction } from '../transations/entities/transation.entity';
+import { TransactionsModule } from '../transations/transations.module';
+import { AccountsController } from './accounts.controller';
+import { User } from '../users/entities/user.entity';
+import { AccountsService } from './accounts.service';
+import { Account } from './entities/account.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [

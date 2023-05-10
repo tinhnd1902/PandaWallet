@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CreateProfileDto } from './dto/create-profile.dto';
-import { Profile } from './entities/profile.entity';
-import { User } from '../users/entities/user.entity';
-import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { User } from '../users/entities/user.entity';
+import { Profile } from './entities/profile.entity';
 
 @Injectable()
 export class ProfileService {
@@ -28,9 +29,8 @@ export class ProfileService {
       ...createProfileDto,
       createAt: new Date(),
     });
-    const profile = await this.profileRepository.save(newProfile);
 
-    user.profile = profile;
+    user.profile = await this.profileRepository.save(newProfile);
     await this.userRepository.save(user);
 
     return await this.userRepository.findOne({

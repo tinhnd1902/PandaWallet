@@ -1,3 +1,5 @@
+import { Transaction } from '../../transations/entities/transation.entity';
+import { User } from '../../users/entities/user.entity';
 import {
   Column,
   Entity,
@@ -5,8 +7,6 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Transaction } from '../../transations/entities/transation.entity';
 
 @Entity()
 export class Account {
