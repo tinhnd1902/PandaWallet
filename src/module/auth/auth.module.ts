@@ -1,33 +1,37 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { User } from '../users/entities/user.entity';
+import { JwtStrategy } from './jwt.strategy';
+import { UsersService } from '../users/users.service';
+import { AccountsService } from '../accounts/accounts.service';
+import { ProfileService } from '../profile/profile.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { jwtConstants } from './constants';
-import { Account } from '../accounts/entities/account.entity';
+import { User } from '../users/entities/user.entity';
 import { Profile } from '../profile/entities/profile.entity';
-import { AccountsModule } from '../accounts/accounts.module';
-import { ProfileModule } from '../profile/profile.module';
-import { Transaction } from '../transations/entities/transation.entity';
-import { TransationsModule } from '../transations/transations.module';
+import { Account } from '../accounts/entities/account.entity';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([User, Profile, Account]),
     PassportModule,
     JwtModule.register({
-      secret: jwtConstants.secret,
-      signOptions: { expiresIn: '60s' },
+      secret: process.env.SECRET,
+      signOptions: { expiresIn: '3600s' },
     }),
-    TypeOrmModule.forFeature([User, Account, Profile, Transaction]),
-    UsersModule,
-    AccountsModule,
-    ProfileModule,
-    TransationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    UsersService,
+    AccountsService,
+    ProfileService,
+    JwtStrategy,
+  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

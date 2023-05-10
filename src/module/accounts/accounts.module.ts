@@ -2,19 +2,17 @@ import { Module } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { AccountsController } from './accounts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
 import { Account } from './entities/account.entity';
-import { Transaction } from '../transations/entities/transation.entity';
+import { TransactionsModule } from '../transations/transations.module';
 import { UsersModule } from '../users/users.module';
-import { ProfileModule } from '../profile/profile.module';
-import { TransationsModule } from '../transations/transations.module';
+import { User } from '../users/entities/user.entity';
+import { Transaction } from '../transations/entities/transation.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Account, Transaction]),
+    TypeOrmModule.forFeature([Account, User, Transaction]),
     UsersModule,
-    ProfileModule,
-    TransationsModule,
+    TransactionsModule,
   ],
   controllers: [AccountsController],
   providers: [AccountsService],

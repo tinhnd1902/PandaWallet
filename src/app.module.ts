@@ -1,7 +1,7 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { TransationsModule } from './module/transations/transations.module';
+import { TransactionsModule } from './module/transations/transations.module';
 import { AccountsModule } from './module/accounts/accounts.module';
 import { UsersModule } from './module/users/users.module';
 import { AppController } from './app.controller';
@@ -16,7 +16,7 @@ import { BotTelegramModule } from './module/bot-telegram/bot-telegram.module';
     AuthModule,
     UsersModule,
     AccountsModule,
-    TransationsModule,
+    TransactionsModule,
     BotTelegramModule,
     TypeOrmModule.forRoot(ormConfig),
     ProfileModule,

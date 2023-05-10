@@ -7,17 +7,12 @@ import { Profile } from '../profile/entities/profile.entity';
 import { Account } from '../accounts/entities/account.entity';
 import { ProfileModule } from '../profile/profile.module';
 import { AccountsModule } from '../accounts/accounts.module';
-import { TransationsModule } from '../transations/transations.module';
-import { Transaction } from '../transations/entities/transation.entity';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Profile, Account, Transaction]),
-    ProfileModule,
-    AccountsModule,
-    TransationsModule,
-    AuthModule,
+    TypeOrmModule.forFeature([User, Profile, Account]),
+    // ProfileModule,
+    // AccountsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],
