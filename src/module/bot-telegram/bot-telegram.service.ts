@@ -1,13 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
 import * as TelegramBot from 'node-telegram-bot-api';
-import { replyMarkup } from './constants';
+import { Injectable } from '@nestjs/common';
 import * as dotenv from 'dotenv';
-import { AuthService } from '../auth/auth.service';
+import * as bcrypt from 'bcrypt';
+
+import { TransactionsService } from '../transations/transations.service';
 import { AccountsService } from '../accounts/accounts.service';
 import { ProfileService } from '../profile/profile.service';
 import { UsersService } from '../users/users.service';
-import * as bcrypt from 'bcrypt';
-import { TransactionsService } from '../transations/transations.service';
+import { AuthService } from '../auth/auth.service';
+import { replyMarkup } from './constants';
 
 dotenv.config();
 
@@ -16,7 +17,6 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 @Injectable()
 export class BotTelegramService {
   private readonly bot: any;
-  // private logger = new Logger(BotTelegramService.name);
   private currentUserId: number;
   private currentAction: string;
   private username: string;
@@ -39,8 +39,6 @@ export class BotTelegramService {
   }
 
   handleMessage = async (msg: any) => {
-    // this.logger.debug(msg);
-
     const options = {
       chat_id: msg.from.id,
       first_name: msg.from.first_name,
@@ -61,7 +59,6 @@ export class BotTelegramService {
       case msg.reply_to_message &&
         msg.reply_to_message.message_id &&
         this.currentAction === 'create':
-        // this.logger.debug(this.username, this.password);
         if (this.username === undefined && this.password === undefined) {
           this.username = msg.text;
           await this.sendMessageToUser(
@@ -331,8 +328,6 @@ export class BotTelegramService {
   };
 
   handleCallbackQuery = async (query: any) => {
-    // this.logger.debug(query);
-
     const options = {
       user_id: String(query.from.id),
       chat_id: query.message.chat.id,

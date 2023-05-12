@@ -1,14 +1,13 @@
+import { Controller, Post, Req } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ApiTags } from '@nestjs/swagger';
 import { Repository } from 'typeorm';
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 
 import { AccountsService } from '../accounts/accounts.service';
 import { ProfileService } from '../profile/profile.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
-import { AuthGuard } from './auth.guard';
 
 @Controller('auth')
 @ApiTags('Auth')
@@ -59,19 +58,13 @@ export class AuthController {
     return this.authService.login(req.body);
   }
 
-  @Post('forgot-password')
-  async forgotPassword(@Body() forgotPasswordDto: any) {
-    // Wait
-  }
+  // @Post('forgot-password')
+  // async forgotPassword(@Body() forgotPasswordDto: any) {
+  //   // Wait
+  // }
 
-  @Post('reset-password')
-  async resetPassword(@Body() resetPasswordDto: any) {
-    // Wait
-  }
-
-  @Get('test')
-  @UseGuards(AuthGuard)
-  test() {
-    return 'test';
-  }
+  // @Post('reset-password')
+  // async resetPassword(@Body() resetPasswordDto: any) {
+  //   // Wait
+  // }
 }

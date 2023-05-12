@@ -1,9 +1,4 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -81,69 +76,69 @@ export class UsersService {
   }
 
   //Add new account for specified user
-  async addAccountToUser(
-    userId: string,
-    accountNumber: string,
-    balance: string,
-  ): Promise<void> {
-    const user = await this.userRepository.findOne({
-      where: {
-        id: userId,
-      },
-    });
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    const newAccount = new Account();
-    newAccount.accountNumber = accountNumber;
-    newAccount.balance = balance;
-    newAccount.createAt = new Date();
-    newAccount.user = user;
-
-    await this.accountsRepository.save(newAccount);
-  }
+  // async addAccountToUser(
+  //   userId: string,
+  //   accountNumber: string,
+  //   balance: string,
+  // ): Promise<void> {
+  //   const user = await this.userRepository.findOne({
+  //     where: {
+  //       id: userId,
+  //     },
+  //   });
+  //   if (!user) {
+  //     throw new Error('User not found');
+  //   }
+  //
+  //   const newAccount = new Account();
+  //   newAccount.accountNumber = accountNumber;
+  //   newAccount.balance = balance;
+  //   newAccount.createAt = new Date();
+  //   newAccount.user = user;
+  //
+  //   await this.accountsRepository.save(newAccount);
+  // }
 
   //Get a list of user accounts based on ID
-  async getUserAccounts(userId: string): Promise<Account[]> {
-    return await this.accountsRepository.find({
-      where: { user: { id: userId } },
-      order: { createAt: 'ASC' },
-    });
-  }
+  // async getUserAccounts(userId: string): Promise<Account[]> {
+  //   return await this.accountsRepository.find({
+  //     where: { user: { id: userId } },
+  //     order: { createAt: 'ASC' },
+  //   });
+  // }
 
   //Update user information based on ID
-  async updateUser(id: string, userDto: any): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: {
-        id: id,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-
-    if (userDto.username) {
-      user.username = userDto.username;
-    }
-
-    if (userDto.password) {
-      user.password = userDto.password;
-    }
-
-    // // Update profile if provided
-    // if (userDto.profile) {
-    //   const { firstName, lastName, age, gender, address } = userDto.profile;
-    //   const profile = await this.profileRepository.findOne(user.profile.id);
-    //   profile.firstName = firstName || profile.firstName;
-    //   profile.lastName = lastName || profile.lastName;
-    //   profile.age = age || profile.age;
-    //   profile.gender = gender || profile.gender;
-    //   profile.address = address || profile.address;
-    //   await this.profileRepository.save(profile);
-    // }
-
-    return await this.userRepository.save(user);
-  }
+  // async updateUser(id: string, userDto: any): Promise<User> {
+  //   const user = await this.userRepository.findOne({
+  //     where: {
+  //       id: id,
+  //     },
+  //   });
+  //
+  //   if (!user) {
+  //     throw new NotFoundException(`User with ID ${id} not found`);
+  //   }
+  //
+  //   if (userDto.username) {
+  //     user.username = userDto.username;
+  //   }
+  //
+  //   if (userDto.password) {
+  //     user.password = userDto.password;
+  //   }
+  //
+  //   // // Update profile if provided
+  //   // if (userDto.profile) {
+  //   //   const { firstName, lastName, age, gender, address } = userDto.profile;
+  //   //   const profile = await this.profileRepository.findOne(user.profile.id);
+  //   //   profile.firstName = firstName || profile.firstName;
+  //   //   profile.lastName = lastName || profile.lastName;
+  //   //   profile.age = age || profile.age;
+  //   //   profile.gender = gender || profile.gender;
+  //   //   profile.address = address || profile.address;
+  //   //   await this.profileRepository.save(profile);
+  //   // }
+  //
+  //   return await this.userRepository.save(user);
+  // }
 }

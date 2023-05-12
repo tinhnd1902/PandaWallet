@@ -1,5 +1,5 @@
-import { User } from '../../users/entities/user.entity';
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity()
 export class Account {
@@ -17,10 +17,4 @@ export class Account {
 
   @ManyToOne(() => User, (user) => user.accounts)
   user: User;
-
-  // @OneToMany(() => Transaction, (transaction) => transaction.sourceAccount)
-  // sourceTransactions: Transaction[];
-  //
-  // @OneToMany(() => Transaction, (transaction) => transaction.destinationAccount)
-  // destinationTransactions: Transaction[];
 }

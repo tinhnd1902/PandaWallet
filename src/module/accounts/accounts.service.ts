@@ -1,6 +1,6 @@
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 import { CreateAccountDto } from './dto/create-account.dto';
 import { User } from '../users/entities/user.entity';
@@ -126,38 +126,38 @@ export class AccountsService {
     return 'An error has occurred';
   }
 
-  getAccountById(id: string): Promise<Account> {
-    return this.accountRepository.findOne({
-      where: {
-        id: id,
-      },
-    });
-  }
+  // getAccountById(id: string): Promise<Account> {
+  //   return this.accountRepository.findOne({
+  //     where: {
+  //       id: id,
+  //     },
+  //   });
+  // }
 
-  async updateAccountBalance(id: string, amount: string): Promise<Account> {
-    const account = await this.accountRepository.findOne({
-      where: {
-        id: id,
-      },
-    });
-    if (!account) {
-      throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-    }
+  // async updateAccountBalance(id: string, amount: string): Promise<Account> {
+  //   const account = await this.accountRepository.findOne({
+  //     where: {
+  //       id: id,
+  //     },
+  //   });
+  //   if (!account) {
+  //     throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+  //   }
+  //
+  //   account.balance = amount;
+  //   return this.accountRepository.save(account);
+  // }
 
-    account.balance = amount;
-    return this.accountRepository.save(account);
-  }
-
-  async deleteAccount(id: string): Promise<void> {
-    const account = await this.accountRepository.findOne({
-      where: {
-        id: id,
-      },
-    });
-    if (!account) {
-      throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-    }
-
-    await this.accountRepository.remove(account);
-  }
+  // async deleteAccount(id: string): Promise<void> {
+  //   const account = await this.accountRepository.findOne({
+  //     where: {
+  //       id: id,
+  //     },
+  //   });
+  //   if (!account) {
+  //     throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+  //   }
+  //
+  //   await this.accountRepository.remove(account);
+  // }
 }

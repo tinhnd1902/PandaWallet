@@ -19,10 +19,4 @@ export class Transaction {
 
   @Column()
   destinationAccount: string;
-
-  // @ManyToOne(() => Account, (account) => account.sourceTransactions)
-  // sourceAccount: Account;
-  //
-  // @ManyToOne(() => Account, (account) => account.destinationTransactions)
-  // destinationAccount: Account;
 }
