@@ -19,24 +19,25 @@ export class ProfileService {
     const user = await this.userRepository.findOneBy({
       username: username,
     });
-    if (!user)
-      throw new HttpException(
-        'User Not Found. Cannot create Profile',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (user) {
+      const newProfile = this.profileRepository.create({
+        ...createProfileDto,
+        createAt: new Date(),
+      });
 
-    const newProfile = this.profileRepository.create({
-      ...createProfileDto,
-      createAt: new Date(),
-    });
+      user.profile = await this.profileRepository.save(newProfile);
+      await this.userRepository.save(user);
 
-    user.profile = await this.profileRepository.save(newProfile);
-    await this.userRepository.save(user);
+      return await this.userRepository.findOne({
+        where: { username: username },
+        relations: ['profile'],
+      });
+    }
 
-    return await this.userRepository.findOne({
-      where: { username: username },
-      relations: ['profile'],
-    });
+    throw new HttpException(
+      'User Not Found. Cannot create Profile',
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   //Get profile information based on ID

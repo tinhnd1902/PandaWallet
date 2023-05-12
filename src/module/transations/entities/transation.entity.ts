@@ -1,6 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-
-import { Account } from '../../accounts/entities/account.entity';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class Transaction {
@@ -8,7 +6,7 @@ export class Transaction {
   id: string;
 
   @Column()
-  amount: number;
+  amount: string;
 
   @Column()
   description: string;
@@ -16,9 +14,15 @@ export class Transaction {
   @Column()
   type: string;
 
-  @ManyToOne(() => Account, (account) => account.sourceTransactions)
-  sourceAccount: Account;
+  @Column()
+  sourceAccount: string;
 
-  @ManyToOne(() => Account, (account) => account.destinationTransactions)
-  destinationAccount: Account;
+  @Column()
+  destinationAccount: string;
+
+  // @ManyToOne(() => Account, (account) => account.sourceTransactions)
+  // sourceAccount: Account;
+  //
+  // @ManyToOne(() => Account, (account) => account.destinationTransactions)
+  // destinationAccount: Account;
 }

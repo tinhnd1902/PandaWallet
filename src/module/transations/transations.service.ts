@@ -2,9 +2,10 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { CreateTransationDto } from './dto/create-transation.dto';
 import { Account } from '../accounts/entities/account.entity';
 import { Transaction } from './entities/transation.entity';
+import { CreateTransactionDto } from './dto/create-transation.dto';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class TransactionsService {
@@ -13,32 +14,37 @@ export class TransactionsService {
     private transactionRepository: Repository<Transaction>,
     @InjectRepository(Account)
     private accountRepository: Repository<Account>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
-  //Create a new transaction
-  async createTransaction(
-    sourceAccountId: string,
-    destinationAccountId: string,
-    createTransationDto: CreateTransationDto,
-  ) {
-    const sourceAccount = await this.accountRepository.findOne({
+  //Create Transaction
+  async createTransaction(createTransactionDto: CreateTransactionDto) {
+    if (!createTransactionDto) {
+      throw new HttpException('Invalid request', HttpStatus.BAD_REQUEST);
+    }
+    const { amount, description, type, sourceAccount, destinationAccount } =
+      createTransactionDto;
+    const checkSourceAccount = await this.userRepository.findOne({
       where: {
-        id: sourceAccountId,
+        username: sourceAccount,
       },
     });
-    if (!sourceAccount) {
+
+    if (!checkSourceAccount) {
       throw new HttpException(
         'Invalid source account id',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const destinationAccount = await this.accountRepository.findOne({
+    const checkDestinationAccount = await this.userRepository.findOne({
       where: {
-        id: destinationAccountId,
+        username: destinationAccount,
       },
     });
-    if (!destinationAccount) {
+
+    if (!checkDestinationAccount) {
       throw new HttpException(
         'Invalid destination account id',
         HttpStatus.BAD_REQUEST,
@@ -46,25 +52,68 @@ export class TransactionsService {
     }
 
     const transaction = this.transactionRepository.create({
-      ...createTransationDto,
-      sourceAccount,
-      destinationAccount,
+      sourceAccount: String(sourceAccount),
+      destinationAccount: String(destinationAccount),
+      description,
+      amount,
+      type,
     });
-    await this.transactionRepository.save(transaction);
-
-    return transaction;
+    return this.transactionRepository.save(transaction);
   }
 
+  //Create a new transaction
+  // async createTransaction(
+  //   sourceAccountId: string,
+  //   destinationAccountId: string,
+  //   createTransactionDto: CreateTransationDto,
+  // ) {
+  //   const sourceAccount = await this.accountRepository.findOne({
+  //     where: {
+  //       id: sourceAccountId,
+  //     },
+  //   });
+  //   if (!sourceAccount) {
+  //     throw new HttpException(
+  //       'Invalid source account id',
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
+  //
+  //   const destinationAccount = await this.accountRepository.findOne({
+  //     where: {
+  //       id: destinationAccountId,
+  //     },
+  //   });
+  //   if (!destinationAccount) {
+  //     throw new HttpException(
+  //       'Invalid destination account id',
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
+  //
+  //   const transaction = this.transactionRepository.create({
+  //     ...createTransactionDto,
+  //     sourceAccount,
+  //     destinationAccount,
+  //   });
+  //   await this.transactionRepository.save(transaction);
+  //
+  //   return transaction;
+  // }
+
   //Get the details of a transaction.
-  async getTransactionById(id: string) {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id: id },
-      relations: ['sourceAccount', 'destinationAccount'],
-    });
-    if (!transaction) {
-      throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+  async getOneTransactionById(id: string) {
+    try {
+      const transaction = await this.transactionRepository.findOne({
+        where: { id: id },
+      });
+      if (!transaction) {
+        return 'Transaction not found';
+      }
+      return transaction;
+    } catch (e) {
+      return 'Something went wrong. Please check the id transaction again';
     }
-    return transaction;
   }
 
   // //Get the list of transactions of an account
@@ -76,30 +125,30 @@ export class TransactionsService {
   // }
 
   //Calculate the balance of an account based on the transactions made.
-  async getAccountBalance(accountId: string) {
-    const account = await this.accountRepository.findOne({
-      where: { id: accountId },
-      relations: ['sourceTransactions', 'destinationTransactions'],
-    });
+  // async getAccountBalance(accountId: string) {
+  //   const account = await this.accountRepository.findOne({
+  //     where: { id: accountId },
+  //     relations: ['sourceTransactions', 'destinationTransactions'],
+  //   });
+  //
+  //   if (!account) {
+  //     throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+  //   }
+  //
+  //   let balance = Number(account.balance);
+  //
+  //   account.sourceTransactions.forEach((transaction) => {
+  //     balance -= transaction.amount;
+  //   });
+  //
+  //   account.destinationTransactions.forEach((transaction) => {
+  //     balance += transaction.amount;
+  //   });
+  //
+  //   return String(balance);
+  // }
 
-    if (!account) {
-      throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-    }
-
-    let balance = Number(account.balance);
-
-    account.sourceTransactions.forEach((transaction) => {
-      balance -= transaction.amount;
-    });
-
-    account.destinationTransactions.forEach((transaction) => {
-      balance += transaction.amount;
-    });
-
-    return String(balance);
-  }
-
-  //Delete a transaction.
+  //Delete a transaction.w
   async deleteTransaction(id: string) {
     const transaction = await this.transactionRepository.findOne({
       where: {

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -34,7 +39,7 @@ export class UsersService {
         relations: ['profile', 'accounts'],
       });
     }
-    return 'User already exists';
+    throw new HttpException('User already exists', HttpStatus.BAD_REQUEST);
   }
 
   //Get information of all users

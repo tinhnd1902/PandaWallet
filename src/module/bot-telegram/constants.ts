@@ -2,7 +2,7 @@ export const replyMarkup = {
   inline_keyboard: [
     [
       {
-        text: `Create account`,
+        text: `Register user new`,
         callback_data: 'create',
       },
       {
@@ -26,18 +26,14 @@ export const replyMarkup = {
         callback_data: 'withdraw',
       },
       {
-        text: 'Transaction history',
+        text: 'Transaction Retrieval',
         callback_data: 'history',
       },
     ],
     [
       {
-        text: 'Customer support',
-        callback_data: 'support',
-      },
-      {
-        text: 'Information security',
-        callback_data: 'security',
+        text: 'Register to Telegram',
+        callback_data: 'register',
       },
     ],
   ],

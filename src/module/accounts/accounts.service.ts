@@ -18,26 +18,27 @@ export class AccountsService {
       username: username,
     });
 
-    if (!user) {
-      throw new HttpException(
-        'User not found. Cannot create account.',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (user) {
+      const newAccount = this.accountRepository.create({
+        ...createAccountDto,
+        user,
+        createAt: new Date(),
+      });
+
+      await this.accountRepository.save(newAccount);
+
+      const updatedUser = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['accounts'],
+      });
+
+      return updatedUser.accounts;
     }
 
-    const newAccount = this.accountRepository.create({
-      ...createAccountDto,
-      user,
-    });
-
-    await this.accountRepository.save(newAccount);
-
-    const updatedUser = await this.userRepository.findOne({
-      where: { id: user.id },
-      relations: ['accounts'],
-    });
-
-    return updatedUser.accounts;
+    throw new HttpException(
+      'User not found. Cannot create account.',
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   async checkingBalance(username: string) {
@@ -45,7 +46,11 @@ export class AccountsService {
       where: { username: username },
       relations: ['accounts'],
     });
-    if (checkUser) {
+    if (
+      checkUser &&
+      !(checkUser.length === 0) &&
+      !(checkUser[0].accounts.length === 0)
+    ) {
       return {
         accountNumber: checkUser[0].accounts[0].accountNumber,
         balance: checkUser[0].accounts[0].balance,
@@ -59,16 +64,20 @@ export class AccountsService {
       where: { username: username },
       relations: ['accounts'],
     });
-    if (checkUser) {
-      await this.accountRepository.update(checkUser[0].accounts[0].id, {
+    if (
+      checkUser &&
+      !(checkUser.length === 0) &&
+      !(checkUser[0].accounts.length === 0) &&
+      Number(deposit) > 0
+    ) {
+      return await this.accountRepository.update(checkUser[0].accounts[0].id, {
         accountNumber: '1',
         balance: String(
           Number(checkUser[0].accounts[0].balance) + Number(deposit),
         ),
       });
-      return 'Deposit Successfully';
     }
-    return 'User Not Found';
+    return 'Deposit Error';
   }
 
   async transferMoney(
@@ -80,15 +89,25 @@ export class AccountsService {
       where: { username: usernameSend },
       relations: ['accounts'],
     });
+    if (!CheckUserSend) {
+      throw new HttpException('Invalid source account', HttpStatus.BAD_REQUEST);
+    }
     const CheckUserReceive = await this.userRepository.find({
       where: { username: usernameReceive },
       relations: ['accounts'],
     });
+    if (!CheckUserReceive) {
+      throw new HttpException(
+        'Invalid destination account',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     if (
       CheckUserReceive &&
       CheckUserSend &&
       amount &&
-      Number(CheckUserSend[0].accounts[0].balance) > Number(amount)
+      Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
+      !(CheckUserReceive === CheckUserSend)
     ) {
       await this.accountRepository.update(CheckUserSend[0].accounts[0].id, {
         accountNumber: '1',
