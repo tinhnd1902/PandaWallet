@@ -19,8 +19,8 @@ export class BotTelegramService {
   private readonly bot: any;
   private currentUserId: number;
   private currentAction: string;
-  private username: string;
-  private password: string;
+  // private username: string;
+  // private password: string;
   private idReceive: string;
   private moneyReceive: string;
   private idTransaction: string;
@@ -56,62 +56,62 @@ export class BotTelegramService {
         });
 
       //Create User + Account + Profile
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'create':
-        if (this.username === undefined && this.password === undefined) {
-          this.username = msg.text;
-          await this.sendMessageToUser(
-            this.currentUserId,
-            'Let me know the "PASSWORD" you want?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
-          );
-        } else {
-          this.password = msg.text;
-          try {
-            await this.authService.register({
-              username: this.username,
-              password: this.password,
-            });
-            await this.profileService.createProfile(this.username, {
-              email: '',
-              firstName: '',
-              lastName: '',
-              age: '',
-              gender: '',
-              address: '',
-            });
-            await this.accountsService.createAccount(this.username, {
-              accountNumber: '1',
-              balance: '0',
-            });
-            await this.sendMessageToUser(
-              this.currentUserId,
-              'Create account successfully.',
-            );
-          } catch (e) {
-            await this.sendMessageToUser(
-              this.currentUserId,
-              `Create account failed. User already exists`,
-            );
-          }
-          await this.sendMessageToUser(
-            this.currentUserId,
-            'What can I do for you next?',
-            {
-              reply_markup: JSON.stringify(this.reply_markup),
-            },
-          );
-          this.currentUserId = undefined;
-          this.currentAction = undefined;
-          this.username = undefined;
-          this.password = undefined;
-        }
-        break;
+      // case msg.reply_to_message &&
+      //   msg.reply_to_message.message_id &&
+      //   this.currentAction === 'create':
+      //   if (this.username === undefined && this.password === undefined) {
+      //     this.username = msg.text;
+      //     await this.sendMessageToUser(
+      //       this.currentUserId,
+      //       'Let me know the "PASSWORD" you want?',
+      //       {
+      //         reply_markup: {
+      //           force_reply: true,
+      //         },
+      //       },
+      //     );
+      //   } else {
+      //     this.password = msg.text;
+      //     try {
+      //       await this.authService.register({
+      //         username: this.username,
+      //         password: this.password,
+      //       });
+      //       await this.profileService.createProfile(this.username, {
+      //         email: '',
+      //         firstName: '',
+      //         lastName: '',
+      //         age: '',
+      //         gender: '',
+      //         address: '',
+      //       });
+      //       await this.accountsService.createAccount(this.username, {
+      //         accountNumber: '1',
+      //         balance: '0',
+      //       });
+      //       await this.sendMessageToUser(
+      //         this.currentUserId,
+      //         'Create account successfully.',
+      //       );
+      //     } catch (e) {
+      //       await this.sendMessageToUser(
+      //         this.currentUserId,
+      //         `Create account failed. User already exists`,
+      //       );
+      //     }
+      //     await this.sendMessageToUser(
+      //       this.currentUserId,
+      //       'What can I do for you next?',
+      //       {
+      //         reply_markup: JSON.stringify(this.reply_markup),
+      //       },
+      //     );
+      //     this.currentUserId = undefined;
+      //     this.currentAction = undefined;
+      //     this.username = undefined;
+      //     this.password = undefined;
+      //   }
+      //   break;
 
       case msg.reply_to_message &&
         msg.reply_to_message.message_id &&
@@ -138,11 +138,51 @@ export class BotTelegramService {
             `Deposit Successfully.\n Transaction ID: ${infoTransaction.id}`,
           );
         } else if (!isNaN(Number(msg.text)) || Number(msg.text) < 0) {
-          await this.sendMessageToUser(options.chat_id, 'Invalid deposit ', {
-            reply_markup: JSON.stringify(this.reply_markup),
-          });
+          await this.sendMessageToUser(options.chat_id, 'Invalid deposit ');
         } else {
           await this.sendMessageToUser(options.chat_id, 'Deposit Error', {
+            reply_markup: JSON.stringify(this.reply_markup),
+          });
+        }
+        await this.sendMessageToUser(
+          this.currentUserId,
+          'What can I do for you next?',
+          {
+            reply_markup: JSON.stringify(this.reply_markup),
+          },
+        );
+        this.currentUserId = undefined;
+        this.currentAction = undefined;
+        break;
+
+      case msg.reply_to_message &&
+        msg.reply_to_message.message_id &&
+        this.currentAction === 'withdraw':
+        const withdraw = await this.accountsService.withdrawMoney(
+          String(options.chat_id),
+          msg.text,
+        );
+        if (
+          !(typeof withdraw === 'string') &&
+          !isNaN(Number(msg.text)) &&
+          Number(msg.text) > 0
+        ) {
+          const infoTransaction =
+            await this.transactionService.createTransaction({
+              sourceAccount: options.chat_id,
+              destinationAccount: options.chat_id,
+              description: 'withdraw',
+              amount: msg.text,
+              type: 'withdraw',
+            });
+          await this.sendMessageToUser(
+            options.chat_id,
+            `Withdraw Successfully.\n Transaction ID: ${infoTransaction.id}`,
+          );
+        } else if (!isNaN(Number(msg.text)) || Number(msg.text) < 0) {
+          await this.sendMessageToUser(options.chat_id, 'Invalid withdraw ');
+        } else {
+          await this.sendMessageToUser(options.chat_id, 'Withdraw Error', {
             reply_markup: JSON.stringify(this.reply_markup),
           });
         }
@@ -277,16 +317,16 @@ export class BotTelegramService {
             ) {
               await this.sendMessageToUser(
                 this.currentUserId,
-                `Transaction id:\n ${history?.id}\n 
-                        amount: ${history?.amount}\n 
-                        description: ${history?.description}\n 
-                        type: ${history?.type}\n 
-                        sourceAccount: ${
+                `Transaction Id:\n ${history?.id}\n 
+                        Amount: ${history?.amount}\n 
+                        Description: ${history?.description}\n 
+                        Type: ${history?.type}\n 
+                        Source Account: ${
                           history?.type === 'deposit'
                             ? ''
                             : history?.sourceAccount
                         }\n 
-                        destinationAccount: ${history?.destinationAccount}`,
+                        Destination Account: ${history?.destinationAccount}`,
               );
             } else {
               await this.sendMessageToUser(
@@ -337,20 +377,40 @@ export class BotTelegramService {
     };
 
     switch (true) {
-      case query.data.includes('create'):
-        this.currentUserId = options.chat_id;
-        this.currentAction = 'create';
-        return this.sendMessageToUser(
-          options.chat_id,
-          'Let me know the "USERNAME" you want',
-          {
-            reply_markup: {
-              force_reply: true,
-            },
-          },
-        );
+      // case query.data.includes('create'):
+      //   this.currentUserId = options.chat_id;
+      //   this.currentAction = 'create';
+      //   return this.sendMessageToUser(
+      //     options.chat_id,
+      //     'Let me know the "USERNAME" you want',
+      //     {
+      //       reply_markup: {
+      //         force_reply: true,
+      //       },
+      //     },
+      //   );
       case query.data.includes('checking'):
         if (await this.checkUser(options.user_id)) {
+          const checking = await this.accountsService.checkingBalance(
+            options.user_id,
+          );
+          if (typeof checking === 'string') {
+            await this.sendMessageToUser(
+              options.chat_id,
+              'User not found. Unable to check balance. Please click to "Register" to create a User',
+              {
+                reply_markup: JSON.stringify(this.reply_markup),
+              },
+            );
+          } else {
+            await this.sendMessageToUser(
+              options.chat_id,
+              // `Your account ${checking.accountNumber} currently has a balance of ${checking.balance}`,
+              `Your account balance is ${checking.balance}`,
+            );
+          }
+        } else {
+          await this.registerUser(options.user_id, options.user_id);
           const checking = await this.accountsService.checkingBalance(
             options.user_id,
           );
@@ -368,16 +428,9 @@ export class BotTelegramService {
               `Your account ${checking.accountNumber} currently has a balance of ${checking.balance}`,
             );
           }
-        } else {
-          await this.sendMessageToUser(
-            options.chat_id,
-            `The user does not exist, please click "Register to Telegram" to create a new user`,
-            {
-              reply_markup: JSON.stringify(this.reply_markup),
-            },
-          );
         }
         break;
+
       case query.data.includes('deposit'):
         if (await this.checkUser(options.user_id)) {
           this.currentUserId = options.chat_id;
@@ -392,15 +445,20 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.sendMessageToUser(
+          await this.registerUser(options.user_id, options.user_id);
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'deposit';
+          return this.sendMessageToUser(
             options.chat_id,
-            `The user does not exist, please click "Register to Telegram" to create a new user`,
+            'How much do you want to deposit?',
             {
-              reply_markup: JSON.stringify(this.reply_markup),
+              reply_markup: {
+                force_reply: true,
+              },
             },
           );
         }
-        break;
+
       case query.data.includes('transfer'):
         if (await this.checkUser(options.user_id)) {
           this.currentUserId = options.chat_id;
@@ -415,20 +473,48 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.sendMessageToUser(
+          await this.registerUser(options.user_id, options.user_id);
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'transfer';
+          return this.sendMessageToUser(
             options.chat_id,
-            `The user does not exist, please click "Register to Telegram" to create a new user`,
+            'Which id do you want to go to?',
             {
-              reply_markup: JSON.stringify(this.reply_markup),
+              reply_markup: {
+                force_reply: true,
+              },
             },
           );
         }
-        break;
+
       case query.data.includes('withdraw'):
-        return this.sendMessageToUser(
-          options.chat_id,
-          'Feature Withdraw is under development please wait for the next version ',
-        );
+        if (await this.checkUser(options.user_id)) {
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'withdraw';
+          return this.sendMessageToUser(
+            options.chat_id,
+            'How much do you want to withdraw?',
+            {
+              reply_markup: {
+                force_reply: true,
+              },
+            },
+          );
+        } else {
+          await this.registerUser(options.user_id, options.user_id);
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'withdraw';
+          return this.sendMessageToUser(
+            options.chat_id,
+            'How much do you want to withdraw?',
+            {
+              reply_markup: {
+                force_reply: true,
+              },
+            },
+          );
+        }
+
       case query.data.includes('history'):
         if (await this.checkUser(options.user_id)) {
           this.currentUserId = options.chat_id;
@@ -443,62 +529,68 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.sendMessageToUser(
+          await this.registerUser(options.user_id, options.user_id);
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'history';
+          return this.sendMessageToUser(
             options.chat_id,
-            `The user does not exist, please click "Register to Telegram" to create a new user`,
+            'let me know the transaction id you want to check',
             {
-              reply_markup: JSON.stringify(this.reply_markup),
+              reply_markup: {
+                force_reply: true,
+              },
             },
           );
         }
-        break;
-      case query.data.includes('support'):
-        return this.sendMessageToUser(
-          options.chat_id,
-          'Feature Support is under development please wait for the next version ',
-        );
-      case query.data.includes('security'):
-        return this.sendMessageToUser(
-          options.chat_id,
-          'Feature Security is under development please wait for the next version ',
-        );
-      case query.data.includes('register'):
-        const password = await this.hashId(options.user_id);
 
-        const checkUser = await this.userService.findOneByUsername(
-          options.user_id,
-        );
-        if (!checkUser) {
-          await this.authService.register({
-            username: options.user_id,
-            password: password,
-          });
-          await this.profileService.createProfile(options.user_id, {
-            email: '',
-            firstName: '',
-            lastName: '',
-            age: '',
-            gender: '',
-            address: '',
-          });
-          await this.accountsService.createAccount(options.user_id, {
-            accountNumber: '1',
-            balance: '0',
-          });
-          await this.sendMessageToUser(
-            options.chat_id,
-            'Register Successfully',
-          );
-        } else {
-          await this.sendMessageToUser(
-            options.chat_id,
-            'Registration Failed. User already exists',
-            {
-              reply_markup: JSON.stringify(this.reply_markup),
-            },
-          );
-        }
-        break;
+      // case query.data.includes('support'):
+      //   return this.sendMessageToUser(
+      //     options.chat_id,
+      //     'Feature Support is under development please wait for the next version ',
+      //   );
+      // case query.data.includes('security'):
+      //   return this.sendMessageToUser(
+      //     options.chat_id,
+      //     'Feature Security is under development please wait for the next version ',
+      //   );
+      // case query.data.includes('register'):
+      //   const password = await this.hashId(options.user_id);
+      //
+      //   const checkUser = await this.userService.findOneByUsername(
+      //     options.user_id,
+      //   );
+      //   if (!checkUser) {
+      //     await this.authService.register({
+      //       username: options.user_id,
+      //       password: password,
+      //     });
+      //     await this.profileService.createProfile(options.user_id, {
+      //       email: '',
+      //       firstName: '',
+      //       lastName: '',
+      //       age: '',
+      //       gender: '',
+      //       address: '',
+      //     });
+      //     await this.accountsService.createAccount(options.user_id, {
+      //       accountNumber: '1',
+      //       balance: '0',
+      //     });
+      //     await this.sendMessageToUser(
+      //       options.chat_id,
+      //       'Register Successfully',
+      //     );
+      //   } else {
+      //     await this.sendMessageToUser(
+      //       options.chat_id,
+      //       'Registration Failed. User already exists',
+      //       {
+      //         reply_markup: JSON.stringify(this.reply_markup),
+      //       },
+      //     );
+      //   }
+      //   break;
+
       default:
         return this.sendMessageToUser(
           options.chat_id,
@@ -519,5 +611,24 @@ export class BotTelegramService {
   checkUser = async (username: string) => {
     const user = await this.userService.findOneByUsername(username);
     return !!user;
+  };
+
+  registerUser = async (username: string, password: string) => {
+    await this.authService.register({
+      username: username,
+      password: password,
+    });
+    await this.profileService.createProfile(username, {
+      email: '',
+      firstName: '',
+      lastName: '',
+      age: '',
+      gender: '',
+      address: '',
+    });
+    await this.accountsService.createAccount(username, {
+      accountNumber: '1',
+      balance: '0',
+    });
   };
 }

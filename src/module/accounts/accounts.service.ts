@@ -80,6 +80,28 @@ export class AccountsService {
     return 'Deposit Error';
   }
 
+  async withdrawMoney(username: string, withdraw: string) {
+    const checkUser = await this.userRepository.find({
+      where: { username: username },
+      relations: ['accounts'],
+    });
+    if (
+      checkUser &&
+      !(checkUser.length === 0) &&
+      !(checkUser[0].accounts.length === 0) &&
+      Number(withdraw) > 0 &&
+      Number(checkUser[0].accounts[0].balance) >= Number(withdraw)
+    ) {
+      return await this.accountRepository.update(checkUser[0].accounts[0].id, {
+        accountNumber: '1',
+        balance: String(
+          Number(checkUser[0].accounts[0].balance) - Number(withdraw),
+        ),
+      });
+    }
+    return 'Withdraw Error';
+  }
+
   async transferMoney(
     usernameSend: string,
     usernameReceive: string,
