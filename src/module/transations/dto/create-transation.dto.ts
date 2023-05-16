@@ -1,7 +1,7 @@
 export class CreateTransactionDto {
-  description: string;
-  sourceAccount: string;
   destinationAccount: string;
-  type: string;
+  sourceAccount: string;
+  description: string;
   amount: string;
+  type: string;
 }

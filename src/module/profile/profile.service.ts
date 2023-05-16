@@ -10,8 +10,8 @@ import { Profile } from './entities/profile.entity';
 @Injectable()
 export class ProfileService {
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
     @InjectRepository(Profile) private profileRepository: Repository<Profile>,
+    @InjectRepository(User) private userRepository: Repository<User>,
   ) {}
 
   //Create a new profile based on the information provided.

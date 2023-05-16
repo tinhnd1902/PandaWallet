@@ -16,26 +16,26 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 @Injectable()
 export class BotTelegramService {
-  private readonly bot: any;
+  private reply_markup = replyMarkup;
   private currentUserId: number;
+  private idTransaction: string;
   private currentAction: string;
+  private moneyReceive: string;
+  private description: string;
   // private username: string;
   // private password: string;
   private idReceive: string;
-  private moneyReceive: string;
-  private idTransaction: string;
-  private description: string;
-  private reply_markup = replyMarkup;
+  private readonly bot: any;
   constructor(
-    private readonly authService: AuthService,
-    private readonly userService: UsersService,
+    private readonly transactionService: TransactionsService,
     private readonly accountsService: AccountsService,
     private readonly profileService: ProfileService,
-    private readonly transactionService: TransactionsService,
+    private readonly userService: UsersService,
+    private readonly authService: AuthService,
   ) {
     this.bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
-    this.bot.on('message', this.handleMessage);
     this.bot.on('callback_query', this.handleCallbackQuery);
+    this.bot.on('message', this.handleMessage);
   }
 
   handleMessage = async (msg: any) => {
@@ -326,7 +326,11 @@ export class BotTelegramService {
                             ? ''
                             : history?.sourceAccount
                         }\n 
-                        Destination Account: ${history?.destinationAccount}`,
+                        Destination Account: ${
+                          history?.type === 'withdraw'
+                            ? ''
+                            : history?.destinationAccount
+                        }`,
               );
             } else {
               await this.sendMessageToUser(

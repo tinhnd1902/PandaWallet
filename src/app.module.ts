@@ -13,13 +13,13 @@ import { ormConfig } from './orm.config';
 
 @Module({
   imports: [
-    AuthModule,
-    UsersModule,
-    AccountsModule,
+    TypeOrmModule.forRoot(ormConfig),
     TransactionsModule,
     BotTelegramModule,
-    TypeOrmModule.forRoot(ormConfig),
+    AccountsModule,
     ProfileModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

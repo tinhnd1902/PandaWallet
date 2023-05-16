@@ -12,10 +12,10 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('Panda Wallet example')
     .setDescription('Panda Wallet API description')
-    .setVersion('1.0')
+    .setTitle('Panda Wallet example')
     .addTag('Panda Wallet')
+    .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/v1', app, document);

@@ -1,15 +1,15 @@
 import {
-  Column,
-  Entity,
+  PrimaryGeneratedColumn,
   JoinColumn,
   OneToMany,
   OneToOne,
-  PrimaryGeneratedColumn,
+  Entity,
+  Column,
   Unique,
 } from 'typeorm';
 
-import { Account } from '../../accounts/entities/account.entity';
 import { Transaction } from '../../transations/entities/transation.entity';
+import { Account } from '../../accounts/entities/account.entity';
 import { Profile } from '../../profile/entities/profile.entity';
 
 @Entity()
