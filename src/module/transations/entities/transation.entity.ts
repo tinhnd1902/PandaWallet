@@ -19,4 +19,7 @@ export class Transaction {
 
   @Column()
   destinationAccount: string;
+
+  @Column()
+  createdAt: Date;
 }

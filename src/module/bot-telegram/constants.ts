@@ -2,27 +2,33 @@ export const replyMarkup = {
   inline_keyboard: [
     [
       {
-        text: 'Checking balance',
+        text: 'Checking Balance',
         callback_data: 'checking',
       },
     ],
     [
       {
-        text: 'Deposit money',
+        text: 'Deposit',
         callback_data: 'deposit',
       },
       {
-        text: 'Withdraw money',
+        text: 'Withdraw',
         callback_data: 'withdraw',
       },
     ],
     [
       {
-        text: 'Transfer money',
+        text: 'Transfer ID',
         callback_data: 'transfer',
       },
       {
-        text: 'Transaction Retrieval',
+        text: 'Transfer Username',
+        callback_data: 'transferUsername',
+      },
+    ],
+    [
+      {
+        text: 'Transaction History',
         callback_data: 'history',
       },
     ],

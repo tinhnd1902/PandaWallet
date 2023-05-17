@@ -1,7 +1,6 @@
 import * as TelegramBot from 'node-telegram-bot-api';
 import { Injectable } from '@nestjs/common';
 import * as dotenv from 'dotenv';
-import * as bcrypt from 'bcrypt';
 
 import { TransactionsService } from '../transations/transations.service';
 import { AccountsService } from '../accounts/accounts.service';
@@ -39,8 +38,11 @@ export class BotTelegramService {
   }
 
   handleMessage = async (msg: any) => {
+    // console.log(msg);
+
     const options = {
       chat_id: msg.from.id,
+      usernameTelegram: String(msg.chat.username),
       first_name: msg.from.first_name,
       text_hello: `Hi ${msg.from.first_name} ${msg.from.last_name}, I'm Panda.
       \nI was born to help you use Panda Wallet.
@@ -304,6 +306,111 @@ export class BotTelegramService {
 
       case msg.reply_to_message &&
         msg.reply_to_message.message_id &&
+        this.currentAction === 'transferUsername':
+        if (
+          this.idReceive === undefined &&
+          this.moneyReceive === undefined &&
+          this.description === undefined
+        ) {
+          this.idReceive = msg.text;
+          await this.sendMessageToUser(
+            options.chat_id,
+            'Please enter the amount you want to transfer',
+            {
+              reply_markup: {
+                force_reply: true,
+              },
+            },
+          );
+        } else if (
+          this.idReceive !== undefined &&
+          this.moneyReceive === undefined &&
+          this.description === undefined
+        ) {
+          this.moneyReceive = msg.text;
+          if (
+            !isNaN(Number(msg.text)) &&
+            Number(msg.text) > 0 &&
+            !(String(options.chat_id) === String(this.idReceive))
+          ) {
+            await this.sendMessageToUser(
+              options.chat_id,
+              'Please enter a description for this transfer',
+              {
+                reply_markup: {
+                  force_reply: true,
+                },
+              },
+            );
+          } else {
+            await this.sendMessageToUser(
+              options.chat_id,
+              'Transfer Failed. Invalid receiving address or deposit amount',
+            );
+            await this.sendMessageToUser(
+              this.currentUserId,
+              'What can I do for you next?',
+              {
+                reply_markup: JSON.stringify(this.reply_markup),
+              },
+            );
+            this.idReceive = undefined;
+            this.moneyReceive = undefined;
+            this.currentUserId = undefined;
+            this.currentAction = undefined;
+          }
+        } else {
+          const description = msg.text;
+          const transferUsername =
+            await this.accountsService.transferUsernameTelegram(
+              String(options.chat_id),
+              this.idReceive,
+              this.moneyReceive,
+            );
+          if (transferUsername === 'Transfer Successfully') {
+            const transaction =
+              await this.transactionService.createTransactionUsername({
+                sourceAccount: String(options.chat_id),
+                destinationAccount: String(this.idReceive),
+                description: description,
+                amount: this.moneyReceive,
+                type: 'transferUsername',
+              });
+            if (transaction) {
+              await this.sendMessageToUser(
+                options.chat_id,
+                `Transfer Successfully.\nTransaction ID: ${transaction.id}`,
+              );
+            } else {
+              await this.sendMessageToUser(
+                options.chat_id,
+                'Transfer Failed. Invalid receiving address or deposit amount',
+              );
+            }
+          } else {
+            await this.sendMessageToUser(
+              options.chat_id,
+              'Transfer Failed. Invalid receiving address or deposit amount',
+            );
+          }
+          await this.sendMessageToUser(
+            this.currentUserId,
+            'What can I do for you next?',
+            {
+              reply_markup: JSON.stringify(this.reply_markup),
+            },
+          );
+          this.description = undefined;
+          this.idReceive = undefined;
+          this.moneyReceive = undefined;
+          this.currentUserId = undefined;
+          this.currentAction = undefined;
+        }
+
+        break;
+
+      case msg.reply_to_message &&
+        msg.reply_to_message.message_id &&
         this.currentAction === 'history':
         this.idTransaction = msg.text;
         try {
@@ -372,9 +479,12 @@ export class BotTelegramService {
   };
 
   handleCallbackQuery = async (query: any) => {
+    // console.log(query);
+
     const options = {
       user_id: String(query.from.id),
       chat_id: query.message.chat.id,
+      usernameTelegram: String(query.message.chat.username),
       first_name: query.message.chat.first_name,
       text_error:
         "I don't understand what you mean. I can only help you with the following: ",
@@ -394,7 +504,8 @@ export class BotTelegramService {
       //     },
       //   );
       case query.data.includes('checking'):
-        if (await this.checkUser(options.user_id)) {
+        const checkUser = await this.checkUser(options.user_id);
+        if (checkUser) {
           const checking = await this.accountsService.checkingBalance(
             options.user_id,
           );
@@ -414,7 +525,15 @@ export class BotTelegramService {
             );
           }
         } else {
-          await this.registerUser(options.user_id, options.user_id);
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
           const checking = await this.accountsService.checkingBalance(
             options.user_id,
           );
@@ -449,7 +568,15 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.registerUser(options.user_id, options.user_id);
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
           this.currentUserId = options.chat_id;
           this.currentAction = 'deposit';
           return this.sendMessageToUser(
@@ -463,7 +590,7 @@ export class BotTelegramService {
           );
         }
 
-      case query.data.includes('transfer'):
+      case query.data === 'transfer':
         if (await this.checkUser(options.user_id)) {
           this.currentUserId = options.chat_id;
           this.currentAction = 'transfer';
@@ -477,7 +604,15 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.registerUser(options.user_id, options.user_id);
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
           this.currentUserId = options.chat_id;
           this.currentAction = 'transfer';
           return this.sendMessageToUser(
@@ -505,7 +640,15 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.registerUser(options.user_id, options.user_id);
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
           this.currentUserId = options.chat_id;
           this.currentAction = 'withdraw';
           return this.sendMessageToUser(
@@ -533,12 +676,56 @@ export class BotTelegramService {
             },
           );
         } else {
-          await this.registerUser(options.user_id, options.user_id);
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
           this.currentUserId = options.chat_id;
           this.currentAction = 'history';
           return this.sendMessageToUser(
             options.chat_id,
             'let me know the transaction id you want to check',
+            {
+              reply_markup: {
+                force_reply: true,
+              },
+            },
+          );
+        }
+
+      case query.data === 'transferUsername':
+        if (await this.checkUsernameTelegram(options.usernameTelegram)) {
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'transferUsername';
+          return this.sendMessageToUser(
+            options.chat_id,
+            'Which username do you want to go to?',
+            {
+              reply_markup: {
+                force_reply: true,
+              },
+            },
+          );
+        } else {
+          await this.registerUser(
+            options.user_id,
+            options.user_id,
+            options.usernameTelegram,
+          );
+          await this.accountsService.handleBackup(
+            options.user_id,
+            options.usernameTelegram,
+          );
+          this.currentUserId = options.chat_id;
+          this.currentAction = 'transferUsername';
+          return this.sendMessageToUser(
+            options.chat_id,
+            'Which username do you want to go to?',
             {
               reply_markup: {
                 force_reply: true,
@@ -608,20 +795,29 @@ export class BotTelegramService {
     return await this.bot.sendMessage(String(userId), message, option);
   };
 
-  hashId = (id: any) => {
-    return bcrypt.hash(id, 10);
-  };
-
   checkUser = async (username: string) => {
     const user = await this.userService.findOneByUsername(username);
     return !!user;
   };
 
-  registerUser = async (username: string, password: string) => {
+  checkUsernameTelegram = async (usernameTelegram: string) => {
+    const user = await this.userService.findOneByUsernameTelegram(
+      usernameTelegram,
+    );
+    return !!user;
+  };
+
+  registerUser = async (
+    username: string,
+    password: string,
+    usernameTelegram: string,
+  ) => {
     await this.authService.register({
       username: username,
       password: password,
+      usernameTelegram: usernameTelegram,
     });
+
     await this.profileService.createProfile(username, {
       email: '',
       firstName: '',
@@ -630,6 +826,7 @@ export class BotTelegramService {
       gender: '',
       address: '',
     });
+
     await this.accountsService.createAccount(username, {
       accountNumber: '1',
       balance: '0',

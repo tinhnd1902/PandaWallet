@@ -8,6 +8,8 @@ import { AccountsService } from '../accounts/accounts.service';
 import { Account } from '../accounts/entities/account.entity';
 import { Profile } from '../profile/entities/profile.entity';
 import { ProfileService } from '../profile/profile.service';
+import { Backup } from '../backup/entities/backup.entity';
+import { BackupService } from '../backup/backup.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { AuthController } from './auth.controller';
@@ -18,7 +20,7 @@ dotenv.config();
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Profile, Account]),
+    TypeOrmModule.forFeature([User, Profile, Account, Backup]),
     PassportModule,
     JwtModule.register({
       secret: process.env.SECRET,
@@ -32,6 +34,7 @@ dotenv.config();
     AccountsService,
     ProfileService,
     JwtStrategy,
+    BackupService,
   ],
   exports: [AuthService],
 })

@@ -57,6 +57,25 @@ export class TransactionsService {
       description,
       amount,
       type,
+      createdAt: new Date(),
+    });
+    return this.transactionRepository.save(transaction);
+  }
+
+  async createTransactionUsername(createTransactionDto: CreateTransactionDto) {
+    if (!createTransactionDto) {
+      throw new HttpException('Invalid request', HttpStatus.BAD_REQUEST);
+    }
+    const { amount, description, type, sourceAccount, destinationAccount } =
+      createTransactionDto;
+
+    const transaction = this.transactionRepository.create({
+      sourceAccount: String(sourceAccount),
+      destinationAccount: String(destinationAccount),
+      description,
+      amount,
+      type,
+      createdAt: new Date(),
     });
     return this.transactionRepository.save(transaction);
   }
@@ -65,7 +84,7 @@ export class TransactionsService {
   // async createTransaction(
   //   sourceAccountId: string,
   //   destinationAccountId: string,
-  //   createTransactionDto: CreateTransationDto,
+  //   createTransactionDto: CreateTransactionDto,
   // ) {
   //   const sourceAccount = await this.accountRepository.findOne({
   //     where: {

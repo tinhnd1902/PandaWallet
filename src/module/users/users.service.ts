@@ -52,6 +52,14 @@ export class UsersService {
       },
     });
   }
+  findOneByUsernameTelegram(usernameTelegram: string) {
+    return this.userRepository.findOne({
+      where: {
+        usernameTelegram: usernameTelegram,
+      },
+      relations: ['accounts'],
+    });
+  }
 
   //Get user information based on ID
   findOneById(id: string) {

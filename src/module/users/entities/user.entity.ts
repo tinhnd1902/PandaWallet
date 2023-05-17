@@ -27,6 +27,9 @@ export class User {
   @Column()
   createAt: Date;
 
+  @Column({ nullable: true })
+  usernameTelegram: string;
+
   @OneToOne(() => Profile)
   @JoinColumn()
   profile: Profile;

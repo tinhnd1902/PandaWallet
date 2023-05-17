@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CreateAccountDto } from './dto/create-account.dto';
+import { Backup } from '../backup/entities/backup.entity';
+import { BackupService } from '../backup/backup.service';
 import { User } from '../users/entities/user.entity';
 import { Account } from './entities/account.entity';
 
@@ -10,7 +12,9 @@ import { Account } from './entities/account.entity';
 export class AccountsService {
   constructor(
     @InjectRepository(Account) private accountRepository: Repository<Account>,
+    @InjectRepository(Backup) private backupRepository: Repository<Backup>,
     @InjectRepository(User) private userRepository: Repository<User>,
+    private readonly backupService: BackupService,
   ) {}
 
   async createAccount(username: string, createAccountDto: CreateAccountDto) {
@@ -118,68 +122,120 @@ export class AccountsService {
       where: { username: usernameReceive },
       relations: ['accounts'],
     });
-    if (!CheckUserReceive) {
-      throw new HttpException(
-        'Invalid destination account',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (CheckUserReceive.length === 0) {
+      return 'Invalid destination account';
+    } else {
+      if (
+        CheckUserReceive &&
+        CheckUserSend &&
+        amount &&
+        Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
+        !(CheckUserReceive === CheckUserSend)
+      ) {
+        await this.accountRepository.update(CheckUserSend[0].accounts[0].id, {
+          accountNumber: '1',
+          balance: String(
+            Number(CheckUserSend[0].accounts[0].balance) - Number(amount),
+          ),
+        });
+        await this.accountRepository.update(
+          CheckUserReceive[0].accounts[0].id,
+          {
+            accountNumber: '1',
+            balance: String(
+              Number(CheckUserReceive[0].accounts[0].balance) + Number(amount),
+            ),
+          },
+        );
+        return 'Transfer Successfully';
+      }
+      return 'An error has occurred';
     }
+  }
+
+  async transferUsernameTelegram(
+    usernameSend: string,
+    usernameReceive: string,
+    amount: string,
+  ) {
+    const CheckUserSend = await this.userRepository.find({
+      where: { username: usernameSend },
+      relations: ['accounts'],
+    });
+    const CheckUserReceive = await this.userRepository.find({
+      where: { usernameTelegram: usernameReceive },
+      relations: ['accounts'],
+    });
+
     if (
-      CheckUserReceive &&
+      CheckUserReceive.length === 0 &&
       CheckUserSend &&
       amount &&
       Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
       !(CheckUserReceive === CheckUserSend)
     ) {
+      await this.backupService.create({
+        userTelegram: usernameReceive,
+        backupBalance: amount,
+        sourceAccount: usernameSend,
+      });
       await this.accountRepository.update(CheckUserSend[0].accounts[0].id, {
         accountNumber: '1',
         balance: String(
           Number(CheckUserSend[0].accounts[0].balance) - Number(amount),
         ),
       });
-      await this.accountRepository.update(CheckUserReceive[0].accounts[0].id, {
-        accountNumber: '1',
-        balance: String(
-          Number(CheckUserReceive[0].accounts[0].balance) + Number(amount),
-        ),
-      });
       return 'Transfer Successfully';
+    } else {
+      if (
+        CheckUserReceive &&
+        CheckUserSend &&
+        amount &&
+        Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
+        !(CheckUserReceive === CheckUserSend)
+      ) {
+        await this.accountRepository.update(CheckUserSend[0].accounts[0].id, {
+          accountNumber: '1',
+          balance: String(
+            Number(CheckUserSend[0].accounts[0].balance) - Number(amount),
+          ),
+        });
+        await this.accountRepository.update(
+          CheckUserReceive[0].accounts[0].id,
+          {
+            accountNumber: '1',
+            balance: String(
+              Number(CheckUserReceive[0].accounts[0].balance) + Number(amount),
+            ),
+          },
+        );
+        return 'Transfer Successfully';
+      }
+      return 'An error has occurred';
     }
-    return 'An error has occurred';
   }
 
-  // getAccountById(id: string): Promise<Account> {
-  //   return this.accountRepository.findOne({
-  //     where: {
-  //       id: id,
-  //     },
-  //   });
-  // }
-
-  // async updateAccountBalance(id: string, amount: string): Promise<Account> {
-  //   const account = await this.accountRepository.findOne({
-  //     where: {
-  //       id: id,
-  //     },
-  //   });
-  //   if (!account) {
-  //     throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-  //   }
-  //
-  //   account.balance = amount;
-  //   return this.accountRepository.save(account);
-  // }
-
-  // async deleteAccount(id: string): Promise<void> {
-  //   const account = await this.accountRepository.findOne({
-  //     where: {
-  //       id: id,
-  //     },
-  //   });
-  //   if (!account) {
-  //     throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-  //   }
-  //
-  //   await this.accountRepository.remove(account);
-  // }
+  async handleBackup(username: string, usernameTelegram: string) {
+    const checkUsernameTelegram = await this.backupRepository.findOne({
+      where: {
+        userTelegram: usernameTelegram,
+      },
+    });
+    const checkUsername = await this.userRepository.findOne({
+      where: {
+        username: username,
+      },
+      relations: ['accounts'],
+    });
+    if (checkUsernameTelegram && checkUsername) {
+      await this.accountRepository.update(checkUsername[0]?.accounts[0]?.id, {
+        accountNumber: '1',
+        balance: String(
+          Number(checkUsername?.accounts[0].balance) +
+            Number(checkUsernameTelegram?.backupBalance),
+        ),
+      });
+      await this.backupRepository.delete(checkUsernameTelegram.id);
+    }
+  }
 }

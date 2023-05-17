@@ -10,12 +10,16 @@ import { Account } from '../accounts/entities/account.entity';
 import { Profile } from '../profile/entities/profile.entity';
 import { ProfileService } from '../profile/profile.service';
 import { BotTelegramService } from './bot-telegram.service';
+import { Backup } from '../backup/entities/backup.entity';
+import { BackupService } from '../backup/backup.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from '../auth/auth.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Profile, Account, Transaction])],
+  imports: [
+    TypeOrmModule.forFeature([User, Profile, Account, Transaction, Backup]),
+  ],
   controllers: [BotTelegramController],
   providers: [
     BotTelegramService,
@@ -25,6 +29,7 @@ import { AuthService } from '../auth/auth.service';
     AccountsService,
     ProfileService,
     TransactionsService,
+    BackupService,
   ],
 })
 export class BotTelegramModule {}
