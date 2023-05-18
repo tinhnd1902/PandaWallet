@@ -523,6 +523,13 @@ export class BotTelegramService {
               // `Your account ${checking.accountNumber} currently has a balance of ${checking.balance}`,
               `Your account balance is ${checking.balance}`,
             );
+            await this.sendMessageToUser(
+              options.chat_id,
+              'What can I do for you next?',
+              {
+                reply_markup: JSON.stringify(this.reply_markup),
+              },
+            );
           }
         } else {
           await this.registerUser(
