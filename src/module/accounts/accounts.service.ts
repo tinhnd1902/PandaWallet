@@ -228,10 +228,10 @@ export class AccountsService {
       relations: ['accounts'],
     });
     if (checkUsernameTelegram && checkUsername) {
-      await this.accountRepository.update(checkUsername[0]?.accounts[0]?.id, {
+      await this.accountRepository.update(checkUsername.accounts[0].id, {
         accountNumber: '1',
         balance: String(
-          Number(checkUsername?.accounts[0].balance) +
+          Number(checkUsername.accounts[0]?.balance) +
             Number(checkUsernameTelegram?.backupBalance),
         ),
       });

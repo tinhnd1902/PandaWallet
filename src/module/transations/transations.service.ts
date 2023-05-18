@@ -30,6 +30,11 @@ export class TransactionsService {
         username: sourceAccount,
       },
     });
+    const checkDestinationAccount = await this.userRepository.findOne({
+      where: {
+        username: destinationAccount,
+      },
+    });
 
     if (!checkSourceAccount) {
       throw new HttpException(
@@ -37,12 +42,6 @@ export class TransactionsService {
         HttpStatus.BAD_REQUEST,
       );
     }
-
-    const checkDestinationAccount = await this.userRepository.findOne({
-      where: {
-        username: destinationAccount,
-      },
-    });
 
     if (!checkDestinationAccount) {
       throw new HttpException(
@@ -167,7 +166,7 @@ export class TransactionsService {
   //   return String(balance);
   // }
 
-  //Delete a transaction.w
+  //Delete a transaction
   async deleteTransaction(id: string) {
     const transaction = await this.transactionRepository.findOne({
       where: {

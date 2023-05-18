@@ -16,15 +16,13 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 @Injectable()
 export class BotTelegramService {
   private reply_markup = replyMarkup;
-  private currentUserId: number;
   private idTransaction: string;
   private currentAction: string;
   private moneyReceive: string;
   private description: string;
-  // private username: string;
-  // private password: string;
   private idReceive: string;
   private readonly bot: any;
+
   constructor(
     private readonly transactionService: TransactionsService,
     private readonly accountsService: AccountsService,
@@ -56,64 +54,6 @@ export class BotTelegramService {
         return this.sendMessageToUser(options.chat_id, options.text_hello, {
           reply_markup: JSON.stringify(this.reply_markup),
         });
-
-      //Create User + Account + Profile
-      // case msg.reply_to_message &&
-      //   msg.reply_to_message.message_id &&
-      //   this.currentAction === 'create':
-      //   if (this.username === undefined && this.password === undefined) {
-      //     this.username = msg.text;
-      //     await this.sendMessageToUser(
-      //       this.currentUserId,
-      //       'Let me know the "PASSWORD" you want?',
-      //       {
-      //         reply_markup: {
-      //           force_reply: true,
-      //         },
-      //       },
-      //     );
-      //   } else {
-      //     this.password = msg.text;
-      //     try {
-      //       await this.authService.register({
-      //         username: this.username,
-      //         password: this.password,
-      //       });
-      //       await this.profileService.createProfile(this.username, {
-      //         email: '',
-      //         firstName: '',
-      //         lastName: '',
-      //         age: '',
-      //         gender: '',
-      //         address: '',
-      //       });
-      //       await this.accountsService.createAccount(this.username, {
-      //         accountNumber: '1',
-      //         balance: '0',
-      //       });
-      //       await this.sendMessageToUser(
-      //         this.currentUserId,
-      //         'Create account successfully.',
-      //       );
-      //     } catch (e) {
-      //       await this.sendMessageToUser(
-      //         this.currentUserId,
-      //         `Create account failed. User already exists`,
-      //       );
-      //     }
-      //     await this.sendMessageToUser(
-      //       this.currentUserId,
-      //       'What can I do for you next?',
-      //       {
-      //         reply_markup: JSON.stringify(this.reply_markup),
-      //       },
-      //     );
-      //     this.currentUserId = undefined;
-      //     this.currentAction = undefined;
-      //     this.username = undefined;
-      //     this.password = undefined;
-      //   }
-      //   break;
 
       case msg.reply_to_message &&
         msg.reply_to_message.message_id &&
@@ -147,13 +87,12 @@ export class BotTelegramService {
           });
         }
         await this.sendMessageToUser(
-          this.currentUserId,
+          options.chat_id,
           'What can I do for you next?',
           {
             reply_markup: JSON.stringify(this.reply_markup),
           },
         );
-        this.currentUserId = undefined;
         this.currentAction = undefined;
         break;
 
@@ -189,13 +128,12 @@ export class BotTelegramService {
           });
         }
         await this.sendMessageToUser(
-          this.currentUserId,
+          options.chat_id,
           'What can I do for you next?',
           {
             reply_markup: JSON.stringify(this.reply_markup),
           },
         );
-        this.currentUserId = undefined;
         this.currentAction = undefined;
         break;
 
@@ -243,7 +181,7 @@ export class BotTelegramService {
               'Transfer Failed. Invalid receiving address or deposit amount',
             );
             await this.sendMessageToUser(
-              this.currentUserId,
+              options.chat_id,
               'What can I do for you next?',
               {
                 reply_markup: JSON.stringify(this.reply_markup),
@@ -251,7 +189,6 @@ export class BotTelegramService {
             );
             this.idReceive = undefined;
             this.moneyReceive = undefined;
-            this.currentUserId = undefined;
             this.currentAction = undefined;
           }
         } else {
@@ -289,7 +226,7 @@ export class BotTelegramService {
             );
           }
           await this.sendMessageToUser(
-            this.currentUserId,
+            options.chat_id,
             'What can I do for you next?',
             {
               reply_markup: JSON.stringify(this.reply_markup),
@@ -298,7 +235,6 @@ export class BotTelegramService {
           this.description = undefined;
           this.idReceive = undefined;
           this.moneyReceive = undefined;
-          this.currentUserId = undefined;
           this.currentAction = undefined;
         }
 
@@ -348,7 +284,7 @@ export class BotTelegramService {
               'Transfer Failed. Invalid receiving address or deposit amount',
             );
             await this.sendMessageToUser(
-              this.currentUserId,
+              options.chat_id,
               'What can I do for you next?',
               {
                 reply_markup: JSON.stringify(this.reply_markup),
@@ -356,7 +292,6 @@ export class BotTelegramService {
             );
             this.idReceive = undefined;
             this.moneyReceive = undefined;
-            this.currentUserId = undefined;
             this.currentAction = undefined;
           }
         } else {
@@ -394,7 +329,7 @@ export class BotTelegramService {
             );
           }
           await this.sendMessageToUser(
-            this.currentUserId,
+            options.chat_id,
             'What can I do for you next?',
             {
               reply_markup: JSON.stringify(this.reply_markup),
@@ -403,7 +338,6 @@ export class BotTelegramService {
           this.description = undefined;
           this.idReceive = undefined;
           this.moneyReceive = undefined;
-          this.currentUserId = undefined;
           this.currentAction = undefined;
         }
 
@@ -419,11 +353,11 @@ export class BotTelegramService {
           );
           if (typeof history !== 'string') {
             if (
-              String(this.currentUserId) === history?.sourceAccount ||
-              String(this.currentUserId) === history?.destinationAccount
+              String(options.chat_id) === history?.sourceAccount ||
+              String(options.chat_id) === history?.destinationAccount
             ) {
               await this.sendMessageToUser(
-                this.currentUserId,
+                options.chat_id,
                 `Transaction Id:\n ${history?.id}\n 
                         Amount: ${history?.amount}\n 
                         Description: ${history?.description}\n 
@@ -441,32 +375,31 @@ export class BotTelegramService {
               );
             } else {
               await this.sendMessageToUser(
-                this.currentUserId,
+                options.chat_id,
                 `Sorry, this transaction doesn't belong to you`,
               );
             }
           } else {
             await this.sendMessageToUser(
-              this.currentUserId,
+              options.chat_id,
               `Transaction not found`,
             );
           }
         } catch (e) {
           await this.sendMessageToUser(
-            this.currentUserId,
+            options.chat_id,
             `Transaction not found`,
           );
         }
 
         await this.sendMessageToUser(
-          this.currentUserId,
+          options.chat_id,
           'What can I do for you next?',
           {
             reply_markup: JSON.stringify(this.reply_markup),
           },
         );
         this.idTransaction = undefined;
-        this.currentUserId = undefined;
         this.currentAction = undefined;
         break;
 
@@ -479,7 +412,7 @@ export class BotTelegramService {
   };
 
   handleCallbackQuery = async (query: any) => {
-    // console.log(query);
+    console.log(query);
 
     const options = {
       user_id: String(query.from.id),
@@ -491,18 +424,6 @@ export class BotTelegramService {
     };
 
     switch (true) {
-      // case query.data.includes('create'):
-      //   this.currentUserId = options.chat_id;
-      //   this.currentAction = 'create';
-      //   return this.sendMessageToUser(
-      //     options.chat_id,
-      //     'Let me know the "USERNAME" you want',
-      //     {
-      //       reply_markup: {
-      //         force_reply: true,
-      //       },
-      //     },
-      //   );
       case query.data.includes('checking'):
         const checkUser = await this.checkUser(options.user_id);
         if (checkUser) {
@@ -563,7 +484,6 @@ export class BotTelegramService {
 
       case query.data.includes('deposit'):
         if (await this.checkUser(options.user_id)) {
-          this.currentUserId = options.chat_id;
           this.currentAction = 'deposit';
           return this.sendMessageToUser(
             options.chat_id,
@@ -584,7 +504,6 @@ export class BotTelegramService {
             options.user_id,
             options.usernameTelegram,
           );
-          this.currentUserId = options.chat_id;
           this.currentAction = 'deposit';
           return this.sendMessageToUser(
             options.chat_id,
@@ -599,7 +518,6 @@ export class BotTelegramService {
 
       case query.data === 'transfer':
         if (await this.checkUser(options.user_id)) {
-          this.currentUserId = options.chat_id;
           this.currentAction = 'transfer';
           return this.sendMessageToUser(
             options.chat_id,
@@ -620,7 +538,6 @@ export class BotTelegramService {
             options.user_id,
             options.usernameTelegram,
           );
-          this.currentUserId = options.chat_id;
           this.currentAction = 'transfer';
           return this.sendMessageToUser(
             options.chat_id,
@@ -635,7 +552,6 @@ export class BotTelegramService {
 
       case query.data.includes('withdraw'):
         if (await this.checkUser(options.user_id)) {
-          this.currentUserId = options.chat_id;
           this.currentAction = 'withdraw';
           return this.sendMessageToUser(
             options.chat_id,
@@ -656,7 +572,6 @@ export class BotTelegramService {
             options.user_id,
             options.usernameTelegram,
           );
-          this.currentUserId = options.chat_id;
           this.currentAction = 'withdraw';
           return this.sendMessageToUser(
             options.chat_id,
@@ -671,7 +586,6 @@ export class BotTelegramService {
 
       case query.data.includes('history'):
         if (await this.checkUser(options.user_id)) {
-          this.currentUserId = options.chat_id;
           this.currentAction = 'history';
           return this.sendMessageToUser(
             options.chat_id,
@@ -692,7 +606,6 @@ export class BotTelegramService {
             options.user_id,
             options.usernameTelegram,
           );
-          this.currentUserId = options.chat_id;
           this.currentAction = 'history';
           return this.sendMessageToUser(
             options.chat_id,
@@ -707,7 +620,6 @@ export class BotTelegramService {
 
       case query.data === 'transferUsername':
         if (await this.checkUsernameTelegram(options.usernameTelegram)) {
-          this.currentUserId = options.chat_id;
           this.currentAction = 'transferUsername';
           return this.sendMessageToUser(
             options.chat_id,
@@ -728,7 +640,6 @@ export class BotTelegramService {
             options.user_id,
             options.usernameTelegram,
           );
-          this.currentUserId = options.chat_id;
           this.currentAction = 'transferUsername';
           return this.sendMessageToUser(
             options.chat_id,
