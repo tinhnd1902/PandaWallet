@@ -172,6 +172,7 @@ export class AccountsService {
       CheckUserSend &&
       amount &&
       Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
+      Number(amount) > 0 &&
       !(CheckUserReceive === CheckUserSend)
     ) {
       await this.backupService.create({
@@ -192,6 +193,7 @@ export class AccountsService {
         CheckUserSend &&
         amount &&
         Number(CheckUserSend[0].accounts[0].balance) > Number(amount) &&
+        Number(amount) > 0 &&
         !(CheckUserReceive === CheckUserSend)
       ) {
         await this.accountRepository.update(CheckUserSend[0].accounts[0].id, {

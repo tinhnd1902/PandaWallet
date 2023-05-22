@@ -14,10 +14,12 @@ import { Backup } from '../backup/entities/backup.entity';
 import { BackupService } from '../backup/backup.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AuthService } from '../auth/auth.service';
 
 @Module({
   imports: [
+    CacheModule.register(),
     TypeOrmModule.forFeature([User, Profile, Account, Transaction, Backup]),
   ],
   controllers: [BotTelegramController],

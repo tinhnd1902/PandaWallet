@@ -178,4 +178,19 @@ export class TransactionsService {
     }
     await this.transactionRepository.remove(transaction);
   }
+
+  //get transaction sort for id
+  async getTransactionSortId(id: string) {
+    const listTransaction = await this.transactionRepository.find();
+
+    const filteredData = listTransaction.filter(
+      (obj) => obj.sourceAccount === id || obj.destinationAccount === id,
+    );
+
+    return filteredData.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }
 }

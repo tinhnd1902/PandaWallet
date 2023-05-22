@@ -1,5 +1,7 @@
-import * as TelegramBot from 'node-telegram-bot-api';
-import { Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable } from '@nestjs/common';
+import { Markup, Telegraf } from 'telegraf';
+import { Cache } from 'cache-manager';
 import * as dotenv from 'dotenv';
 
 import { TransactionsService } from '../transations/transations.service';
@@ -7,723 +9,568 @@ import { AccountsService } from '../accounts/accounts.service';
 import { ProfileService } from '../profile/profile.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from '../auth/auth.service';
-import { replyMarkup } from './constants';
 
 dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+interface Data {
+  action: string;
+  step: number;
+  amount: string;
+  description: string;
+  receiver?: string;
+}
+
 @Injectable()
 export class BotTelegramService {
-  private reply_markup = replyMarkup;
-  private idTransaction: string;
-  private currentAction: string;
-  private moneyReceive: string;
-  private description: string;
-  private idReceive: string;
-  private readonly bot: any;
+  private bot: Telegraf;
+  private keyboardMarkup = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('Deposit', 'deposit'),
+      Markup.button.callback('Withdraw', 'withdraw'),
+    ],
+    [
+      Markup.button.callback('Transfer ID', 'transferId'),
+      Markup.button.callback('Transfer Username', 'transferUsername'),
+    ],
+    [
+      Markup.button.callback('Balance', 'balance'),
+      Markup.button.callback('History', 'history'),
+    ],
+  ]);
+  private keyboardMarkupHistory = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('List History', 'listHistory'),
+      Markup.button.callback('Search History', 'searchHistory'),
+    ],
+  ]);
 
   constructor(
+    @Inject(CACHE_MANAGER) private cache: Cache,
     private readonly transactionService: TransactionsService,
     private readonly accountsService: AccountsService,
     private readonly profileService: ProfileService,
     private readonly userService: UsersService,
     private readonly authService: AuthService,
   ) {
-    this.bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
-    this.bot.on('callback_query', this.handleCallbackQuery);
-    this.bot.on('message', this.handleMessage);
+    this.bot = new Telegraf(TELEGRAM_BOT_TOKEN);
+    this.bot.start(this.handleStartCommand.bind(this));
+    this.bot.on('text', this.handleTextMessage.bind(this));
+    this.bot.action(/.*/, this.handleButtonClick.bind(this));
+    this.bot.launch();
   }
 
-  handleMessage = async (msg: any) => {
-    // console.log(msg);
-
+  async handleStartCommand(ctx: any): Promise<void> {
     const options = {
-      chat_id: msg.from.id,
-      usernameTelegram: String(msg.chat.username),
-      first_name: msg.from.first_name,
-      text_hello: `Hi ${msg.from.first_name} ${msg.from.last_name}, I'm Panda.
-      \nI was born to help you use Panda Wallet.
-      \nLet me know how I can help you?`,
-      text_error:
-        "I don't understand what you mean. I can only help you with the following: ",
+      id: String(ctx.update.message.from.id),
+      username: ctx.update.message.from.username,
+      lastName: ctx.update.message.from.last_name,
+      firstName: ctx.update.message.from.first_name,
+    };
+    const checkIdTelegram = await this.userService.findOneByUsername(
+      options.id,
+    );
+
+    if (!checkIdTelegram) {
+      await this.registerUser(options.id, options.id, options.username);
+      const usernameTelegram = await this.userService.findOneByUsernameTelegram(
+        options.username,
+      );
+      if (usernameTelegram) {
+        await this.accountsService.handleBackup(options.id, options.username);
+      }
+    }
+    await ctx.reply(
+      `Hi ${options.firstName} ${options.lastName}, I'm Panda. Can I help you?`,
+      this.keyboardMarkup,
+    );
+  }
+
+  async handleTextMessage(ctx: any): Promise<void> {
+    const options = {
+      id: String(ctx.update.message.from.id),
+      username: ctx.update.message.from.username,
+      lastName: ctx.update.message.from.last_name,
+      firstName: ctx.update.message.from.first_name,
+      contentText: ctx.message.text,
     };
 
-    switch (true) {
-      case msg.text.includes('/start'):
-        return this.sendMessageToUser(options.chat_id, options.text_hello, {
-          reply_markup: JSON.stringify(this.reply_markup),
-        });
+    const data: Data = (await this.cache.get(options.id)) as Data;
 
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'deposit':
-        const deposit = await this.accountsService.depositMoney(
-          String(options.chat_id),
-          msg.text,
-        );
-        if (
-          !(typeof deposit === 'string') &&
-          !isNaN(Number(msg.text)) &&
-          Number(msg.text) > 0
-        ) {
-          const infoTransaction =
-            await this.transactionService.createTransaction({
-              sourceAccount: options.chat_id,
-              destinationAccount: options.chat_id,
-              description: 'deposit',
-              amount: msg.text,
-              type: 'deposit',
-            });
-          await this.sendMessageToUser(
-            options.chat_id,
-            `Deposit Successfully.\n Transaction ID: ${infoTransaction.id}`,
-          );
-        } else if (!isNaN(Number(msg.text)) || Number(msg.text) < 0) {
-          await this.sendMessageToUser(options.chat_id, 'Invalid deposit ');
-        } else {
-          await this.sendMessageToUser(options.chat_id, 'Deposit Error', {
-            reply_markup: JSON.stringify(this.reply_markup),
-          });
-        }
-        await this.sendMessageToUser(
-          options.chat_id,
-          'What can I do for you next?',
-          {
-            reply_markup: JSON.stringify(this.reply_markup),
-          },
-        );
-        this.currentAction = undefined;
-        break;
+    if (!data) {
+      return await ctx.reply(
+        'You are not in any transactions or transaction timeout. Please try again',
+        this.keyboardMarkup,
+      );
+    }
 
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'withdraw':
-        const withdraw = await this.accountsService.withdrawMoney(
-          String(options.chat_id),
-          msg.text,
-        );
-        if (
-          !(typeof withdraw === 'string') &&
-          !isNaN(Number(msg.text)) &&
-          Number(msg.text) > 0
-        ) {
-          const infoTransaction =
-            await this.transactionService.createTransaction({
-              sourceAccount: options.chat_id,
-              destinationAccount: options.chat_id,
-              description: 'withdraw',
-              amount: msg.text,
-              type: 'withdraw',
-            });
-          await this.sendMessageToUser(
-            options.chat_id,
-            `Withdraw Successfully.\n Transaction ID: ${infoTransaction.id}`,
-          );
-        } else if (!isNaN(Number(msg.text)) || Number(msg.text) < 0) {
-          await this.sendMessageToUser(options.chat_id, 'Invalid withdraw ');
-        } else {
-          await this.sendMessageToUser(options.chat_id, 'Withdraw Error', {
-            reply_markup: JSON.stringify(this.reply_markup),
-          });
-        }
-        await this.sendMessageToUser(
-          options.chat_id,
-          'What can I do for you next?',
-          {
-            reply_markup: JSON.stringify(this.reply_markup),
-          },
-        );
-        this.currentAction = undefined;
-        break;
-
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'transfer':
-        if (
-          this.idReceive === undefined &&
-          this.moneyReceive === undefined &&
-          this.description === undefined
-        ) {
-          this.idReceive = msg.text;
-          await this.sendMessageToUser(
-            options.chat_id,
-            'Please enter the amount you want to transfer',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
-          );
-        } else if (
-          this.idReceive !== undefined &&
-          this.moneyReceive === undefined &&
-          this.description === undefined
-        ) {
-          this.moneyReceive = msg.text;
-          if (
-            !isNaN(Number(msg.text)) &&
-            Number(msg.text) > 0 &&
-            !(String(options.chat_id) === String(this.idReceive))
-          ) {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Please enter a description for this transfer',
-              {
-                reply_markup: {
-                  force_reply: true,
-                },
-              },
-            );
+    switch (data.action) {
+      case 'deposit':
+        if (data.step === 1) {
+          const depositAmount = parseFloat(options.contentText);
+          if (!isNaN(depositAmount) && Number(depositAmount) > 0) {
+            data.amount = options.contentText;
+            data.step = 2;
+            await this.cache.set(options.id, data, 30000);
+            await ctx.reply('Please enter description:', Markup.forceReply());
           } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Transfer Failed. Invalid receiving address or deposit amount',
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'Deposit failed. Please check the amount again and repeat the steps',
+              this.keyboardMarkup,
             );
-            await this.sendMessageToUser(
-              options.chat_id,
-              'What can I do for you next?',
-              {
-                reply_markup: JSON.stringify(this.reply_markup),
-              },
-            );
-            this.idReceive = undefined;
-            this.moneyReceive = undefined;
-            this.currentAction = undefined;
           }
-        } else {
-          const description = msg.text;
+        } else if (data.step === 2) {
+          data.description = options.contentText;
+          await this.cache.set(options.id, data, 30000);
+          const deposit = await this.accountsService.depositMoney(
+            options.id,
+            data.amount,
+          );
+          if (deposit) {
+            const infoTransaction =
+              await this.transactionService.createTransaction({
+                sourceAccount: options.id,
+                destinationAccount: options.id,
+                description: data.description,
+                amount: data.amount,
+                type: 'deposit',
+              });
+            await ctx.reply(
+              `Deposit Successfully.\n Transaction ID: ${infoTransaction.id}`,
+            );
+            await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+          }
+          await this.cache.del(options.id);
+        }
+        break;
+
+      case 'withdraw':
+        if (data.step === 1) {
+          const withdrawAmount = parseFloat(options.contentText);
+          if (!isNaN(withdrawAmount) && Number(withdrawAmount) > 0) {
+            data.amount = options.contentText;
+            data.step = 2;
+            await this.cache.set(options.id, data, 30000);
+            await ctx.reply('Please enter description:', Markup.forceReply());
+          } else {
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'Withdraw failed. Please check the amount again and repeat the steps',
+              this.keyboardMarkup,
+            );
+          }
+        } else if (data.step === 2) {
+          data.description = options.contentText;
+          await this.cache.set(options.id, data, 30000);
+          const withdraw = await this.accountsService.withdrawMoney(
+            options.id,
+            data.amount,
+          );
+          if (withdraw !== 'Withdraw Error') {
+            const infoTransaction =
+              await this.transactionService.createTransaction({
+                sourceAccount: options.id,
+                destinationAccount: options.id,
+                description: data.description,
+                amount: data.amount,
+                type: 'withdraw',
+              });
+            await this.cache.del(options.id);
+            await ctx.reply(
+              `Withdraw Successfully.\n Transaction ID: ${infoTransaction.id}`,
+            );
+            await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+          } else {
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'Withdraw failed. Please check the amount again and repeat the steps',
+              this.keyboardMarkup,
+            );
+          }
+        }
+        break;
+
+      case 'transferId':
+        if (data.step === 1) {
+          data.receiver = options.contentText;
+          data.step = 2;
+          await this.cache.set(options.id, data, 30000);
+          await ctx.reply('Please enter amount:', Markup.forceReply());
+        } else if (data.step === 2) {
+          data.amount = options.contentText;
+          data.step = 3;
+          await this.cache.set(options.id, data, 30000);
+          await ctx.reply('Please enter description:', Markup.forceReply());
+        } else if (data.step === 3) {
+          data.description = options.contentText;
           const transfer = await this.accountsService.transferMoney(
-            String(options.chat_id),
-            this.idReceive,
-            this.moneyReceive,
+            options.id,
+            data.receiver,
+            data.amount,
           );
           if (transfer === 'Transfer Successfully') {
-            const transaction = await this.transactionService.createTransaction(
-              {
-                sourceAccount: String(options.chat_id),
-                destinationAccount: String(this.idReceive),
-                description: description,
-                amount: this.moneyReceive,
-                type: 'transfer',
-              },
+            const infoTransaction =
+              await this.transactionService.createTransaction({
+                sourceAccount: options.id,
+                destinationAccount: data.receiver,
+                description: data.description,
+                amount: data.amount,
+                type: 'transferId',
+              });
+            await this.cache.del(options.id);
+            await ctx.reply(
+              `TransferId Successfully.\n Transaction ID: ${infoTransaction.id}`,
             );
-            if (transaction) {
-              await this.sendMessageToUser(
-                options.chat_id,
-                `Transfer Successfully.\nTransaction ID: ${transaction.id}`,
-              );
-            } else {
-              await this.sendMessageToUser(
-                options.chat_id,
-                'Transfer Failed. Invalid receiving address or deposit amount',
-              );
-            }
           } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Transfer Failed. Invalid receiving address or deposit amount',
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'TransferId failed. Please check the id or amount again and repeat the steps',
             );
           }
-          await this.sendMessageToUser(
-            options.chat_id,
-            'What can I do for you next?',
-            {
-              reply_markup: JSON.stringify(this.reply_markup),
-            },
-          );
-          this.description = undefined;
-          this.idReceive = undefined;
-          this.moneyReceive = undefined;
-          this.currentAction = undefined;
+          await ctx.reply('Can I help you, next?', this.keyboardMarkup);
         }
-
         break;
 
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'transferUsername':
-        if (
-          this.idReceive === undefined &&
-          this.moneyReceive === undefined &&
-          this.description === undefined
-        ) {
-          this.idReceive = msg.text;
-          await this.sendMessageToUser(
-            options.chat_id,
-            'Please enter the amount you want to transfer',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
+      case 'transferUsername':
+        if (data.step === 1) {
+          data.receiver = options.contentText;
+          data.step = 2;
+          await this.cache.set(options.id, data, 30000);
+          await ctx.reply('Please enter amount:', Markup.forceReply());
+        } else if (data.step === 2) {
+          data.amount = options.contentText;
+          data.step = 3;
+          await this.cache.set(options.id, data, 30000);
+          await ctx.reply('Please enter description:', Markup.forceReply());
+        } else if (data.step === 3) {
+          data.description = options.contentText;
+          const transfer = await this.accountsService.transferUsernameTelegram(
+            options.id,
+            data.receiver,
+            data.amount,
           );
-        } else if (
-          this.idReceive !== undefined &&
-          this.moneyReceive === undefined &&
-          this.description === undefined
-        ) {
-          this.moneyReceive = msg.text;
-          if (
-            !isNaN(Number(msg.text)) &&
-            Number(msg.text) > 0 &&
-            !(String(options.chat_id) === String(this.idReceive))
-          ) {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Please enter a description for this transfer',
-              {
-                reply_markup: {
-                  force_reply: true,
-                },
-              },
-            );
-          } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Transfer Failed. Invalid receiving address or deposit amount',
-            );
-            await this.sendMessageToUser(
-              options.chat_id,
-              'What can I do for you next?',
-              {
-                reply_markup: JSON.stringify(this.reply_markup),
-              },
-            );
-            this.idReceive = undefined;
-            this.moneyReceive = undefined;
-            this.currentAction = undefined;
-          }
-        } else {
-          const description = msg.text;
-          const transferUsername =
-            await this.accountsService.transferUsernameTelegram(
-              String(options.chat_id),
-              this.idReceive,
-              this.moneyReceive,
-            );
-          if (transferUsername === 'Transfer Successfully') {
-            const transaction =
+          if (transfer === 'Transfer Successfully') {
+            const infoTransaction =
               await this.transactionService.createTransactionUsername({
-                sourceAccount: String(options.chat_id),
-                destinationAccount: String(this.idReceive),
-                description: description,
-                amount: this.moneyReceive,
+                sourceAccount: options.id,
+                destinationAccount: data.receiver,
+                description: data.description,
+                amount: data.amount,
                 type: 'transferUsername',
               });
-            if (transaction) {
-              await this.sendMessageToUser(
-                options.chat_id,
-                `Transfer Successfully.\nTransaction ID: ${transaction.id}`,
-              );
-            } else {
-              await this.sendMessageToUser(
-                options.chat_id,
-                'Transfer Failed. Invalid receiving address or deposit amount',
-              );
-            }
+            await this.cache.del(options.id);
+            await ctx.reply(
+              `TransferUsername Successfully.\n Transaction ID: ${infoTransaction.id}`,
+            );
           } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'Transfer Failed. Invalid receiving address or deposit amount',
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'TransferUsername failed. Please check the username or amount again and repeat the steps',
             );
           }
-          await this.sendMessageToUser(
-            options.chat_id,
-            'What can I do for you next?',
-            {
-              reply_markup: JSON.stringify(this.reply_markup),
-            },
-          );
-          this.description = undefined;
-          this.idReceive = undefined;
-          this.moneyReceive = undefined;
-          this.currentAction = undefined;
+          await ctx.reply('Can I help you, next?', this.keyboardMarkup);
         }
-
         break;
 
-      case msg.reply_to_message &&
-        msg.reply_to_message.message_id &&
-        this.currentAction === 'history':
-        this.idTransaction = msg.text;
-        try {
-          const history = await this.transactionService.getOneTransactionById(
-            this.idTransaction,
-          );
-          if (typeof history !== 'string') {
+      case 'searchHistory':
+        if (data.step === 1) {
+          const searchHistory =
+            await this.transactionService.getOneTransactionById(
+              options.contentText,
+            );
+          if (typeof searchHistory !== 'string') {
             if (
-              String(options.chat_id) === history?.sourceAccount ||
-              String(options.chat_id) === history?.destinationAccount
+              String(options.id) === searchHistory?.sourceAccount ||
+              String(options.id) === searchHistory?.destinationAccount
             ) {
-              await this.sendMessageToUser(
-                options.chat_id,
-                `Transaction Id:\n ${history?.id}\n 
-                        Amount: ${history?.amount}\n 
-                        Description: ${history?.description}\n 
-                        Type: ${history?.type}\n 
+              await ctx.reply(
+                `Transaction Id:\n ${searchHistory?.id}\n 
+                        Amount: ${searchHistory?.amount}\n 
+                        Description: ${searchHistory?.description}\n 
+                        Type: ${searchHistory?.type}\n 
                         Source Account: ${
-                          history?.type === 'deposit'
+                          searchHistory?.type === 'deposit'
                             ? ''
-                            : history?.sourceAccount
+                            : searchHistory?.sourceAccount
                         }\n 
                         Destination Account: ${
-                          history?.type === 'withdraw'
+                          searchHistory?.type === 'withdraw'
                             ? ''
-                            : history?.destinationAccount
-                        }`,
+                            : searchHistory?.destinationAccount
+                        }\n
+                        CreateAt: ${this.formatDate(
+                          String(searchHistory.createdAt),
+                        )}`,
               );
             } else {
-              await this.sendMessageToUser(
-                options.chat_id,
-                `Sorry, this transaction doesn't belong to you`,
-              );
+              await ctx.reply(`Sorry, this transaction doesn't belong to you`);
             }
           } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              `Transaction not found`,
-            );
+            await ctx.reply(`Transaction not found`);
           }
-        } catch (e) {
-          await this.sendMessageToUser(
-            options.chat_id,
-            `Transaction not found`,
-          );
+          await this.cache.del(options.id);
+          await ctx.reply('Can I help you, next?', this.keyboardMarkup);
         }
+        break;
 
-        await this.sendMessageToUser(
-          options.chat_id,
-          'What can I do for you next?',
-          {
-            reply_markup: JSON.stringify(this.reply_markup),
-          },
-        );
-        this.idTransaction = undefined;
-        this.currentAction = undefined;
+      case 'listHistory':
+        if (data.step === 1) {
+          const number = parseFloat(options.contentText);
+          const listHistory =
+            await this.transactionService.getTransactionSortId(options.id);
+          if (
+            !isNaN(number) &&
+            Number(number) > 0 &&
+            Number(number) < 100 &&
+            listHistory.length > number
+          ) {
+            await ctx.reply(
+              `Here are your last ${number}/${listHistory.length} total transactions`,
+            );
+            const newListHistory = listHistory.slice(0, number);
+            for (const item of newListHistory) {
+              await ctx.reply(`Transaction Id:\n ${item?.id}\n
+                        Amount: ${item?.amount}\n
+                        Description: ${item?.description}\n
+                        Type: ${item?.type}\n
+                        Source Account: ${
+                          item?.type === 'deposit' ? '' : item?.sourceAccount
+                        }\n
+                        Destination Account: ${
+                          item?.type === 'withdraw'
+                            ? ''
+                            : item?.destinationAccount
+                        }\n
+                        CreateAt: ${this.formatDate(String(item.createdAt))}`);
+            }
+          } else {
+            await ctx.reply('Sorry, Number invalid');
+          }
+          await this.cache.del(options.id);
+          await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+        }
         break;
 
       default:
-        await this.sendMessageToUser(options.chat_id, options.text_error, {
-          reply_markup: JSON.stringify(this.reply_markup),
-        });
+        await ctx.reply('Sorry, I dont understand', this.keyboardMarkup);
         break;
     }
-  };
+  }
 
-  handleCallbackQuery = async (query: any) => {
-    console.log(query);
-
+  async handleButtonClick(ctx: any): Promise<void> {
     const options = {
-      user_id: String(query.from.id),
-      chat_id: query.message.chat.id,
-      usernameTelegram: String(query.message.chat.username),
-      first_name: query.message.chat.first_name,
-      text_error:
-        "I don't understand what you mean. I can only help you with the following: ",
+      id: String(ctx.update.callback_query.from.id),
+      username: ctx.update.callback_query.from.username,
+      lastName: ctx.update.callback_query.from.last_name,
+      firstName: ctx.update.callback_query.from.first_name,
+      data: ctx.update.callback_query.data,
     };
 
-    switch (true) {
-      case query.data.includes('checking'):
-        const checkUser = await this.checkUser(options.user_id);
-        if (checkUser) {
-          const checking = await this.accountsService.checkingBalance(
-            options.user_id,
+    const data: Data = ((await this.cache.get(options.id)) as Data) || {
+      action: '',
+      step: 1,
+      amount: '',
+      description: '',
+    };
+
+    switch (options.data) {
+      case 'deposit':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
+            {
+              action: 'deposit',
+              step: 1,
+              amount: '',
+              description: '',
+            },
+            30000,
           );
-          if (typeof checking === 'string') {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'User not found. Unable to check balance. Please click to "Register" to create a User',
-              {
-                reply_markup: JSON.stringify(this.reply_markup),
-              },
-            );
-          } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              // `Your account ${checking.accountNumber} currently has a balance of ${checking.balance}`,
-              `Your account balance is ${checking.balance}`,
-            );
-            await this.sendMessageToUser(
-              options.chat_id,
-              'What can I do for you next?',
-              {
-                reply_markup: JSON.stringify(this.reply_markup),
-              },
-            );
-          }
+          await ctx.reply(
+            'How much money would you like to deposit?',
+            Markup.forceReply(),
+          );
         } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
           );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          const checking = await this.accountsService.checkingBalance(
-            options.user_id,
-          );
-          if (typeof checking === 'string') {
-            await this.sendMessageToUser(
-              options.chat_id,
-              'User not found. Unable to check balance. Please click to "Register" to create a User',
-              {
-                reply_markup: JSON.stringify(this.reply_markup),
-              },
-            );
-          } else {
-            await this.sendMessageToUser(
-              options.chat_id,
-              `Your account ${checking.accountNumber} currently has a balance of ${checking.balance}`,
-            );
-          }
         }
         break;
 
-      case query.data.includes('deposit'):
-        if (await this.checkUser(options.user_id)) {
-          this.currentAction = 'deposit';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'How much do you want to deposit?',
+      case 'withdraw':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
             {
-              reply_markup: {
-                force_reply: true,
-              },
+              action: 'withdraw',
+              step: 1,
+              amount: '',
+              description: '',
             },
+            30000,
+          );
+          await ctx.reply(
+            'How much money would you like to withdraw?',
+            Markup.forceReply(),
           );
         } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
-          );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          this.currentAction = 'deposit';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'How much do you want to deposit?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
           );
         }
+        break;
 
-      case query.data === 'transfer':
-        if (await this.checkUser(options.user_id)) {
-          this.currentAction = 'transfer';
-          return this.sendMessageToUser(
-            options.chat_id,
+      case 'transferId':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
+            {
+              action: 'transferId',
+              step: 1,
+              amount: '',
+              description: '',
+            },
+            30000,
+          );
+          await ctx.reply(
             'Which id do you want to go to?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
+            Markup.forceReply(),
           );
         } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
-          );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          this.currentAction = 'transfer';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'Which id do you want to go to?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
           );
         }
+        break;
 
-      case query.data.includes('withdraw'):
-        if (await this.checkUser(options.user_id)) {
-          this.currentAction = 'withdraw';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'How much do you want to withdraw?',
+      case 'transferUsername':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
             {
-              reply_markup: {
-                force_reply: true,
-              },
+              action: 'transferUsername',
+              step: 1,
+              amount: '',
+              description: '',
             },
+            30000,
           );
-        } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
-          );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          this.currentAction = 'withdraw';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'How much do you want to withdraw?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
-          );
-        }
-
-      case query.data.includes('history'):
-        if (await this.checkUser(options.user_id)) {
-          this.currentAction = 'history';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'let me know the transaction id you want to check',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
-          );
-        } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
-          );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          this.currentAction = 'history';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'let me know the transaction id you want to check',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
-          );
-        }
-
-      case query.data === 'transferUsername':
-        if (await this.checkUsernameTelegram(options.usernameTelegram)) {
-          this.currentAction = 'transferUsername';
-          return this.sendMessageToUser(
-            options.chat_id,
+          await ctx.reply(
             'Which username do you want to go to?',
-            {
-              reply_markup: {
-                force_reply: true,
-              },
-            },
+            Markup.forceReply(),
           );
         } else {
-          await this.registerUser(
-            options.user_id,
-            options.user_id,
-            options.usernameTelegram,
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
           );
-          await this.accountsService.handleBackup(
-            options.user_id,
-            options.usernameTelegram,
-          );
-          this.currentAction = 'transferUsername';
-          return this.sendMessageToUser(
-            options.chat_id,
-            'Which username do you want to go to?',
+        }
+        break;
+
+      case 'balance':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
             {
-              reply_markup: {
-                force_reply: true,
-              },
+              action: 'balance',
+              step: 1,
+              amount: '',
+              description: '',
             },
+            30000,
+          );
+          await this.accountsService.handleBackup(options.id, options.username);
+          const checking = await this.accountsService.checkingBalance(
+            options.id,
+          );
+          if (checking === 'User Not Found. Cannot checking balance') {
+            await this.cache.del(options.id);
+            await ctx.reply(
+              'User not found. Unable to check balance',
+              this.keyboardMarkup,
+            );
+            await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+          } else {
+            const { balance } = checking;
+            await this.cache.del(options.id);
+            await ctx.reply(
+              `Your account currently has a balance of ${balance}`,
+            );
+            await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+          }
+        } else {
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
+          );
+        }
+        break;
+
+      case 'history':
+        if (data.action === '') {
+          await ctx.reply('choose type history', this.keyboardMarkupHistory);
+        } else {
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
           );
         }
 
-      // case query.data.includes('support'):
-      //   return this.sendMessageToUser(
-      //     options.chat_id,
-      //     'Feature Support is under development please wait for the next version ',
-      //   );
-      // case query.data.includes('security'):
-      //   return this.sendMessageToUser(
-      //     options.chat_id,
-      //     'Feature Security is under development please wait for the next version ',
-      //   );
-      // case query.data.includes('register'):
-      //   const password = await this.hashId(options.user_id);
-      //
-      //   const checkUser = await this.userService.findOneByUsername(
-      //     options.user_id,
-      //   );
-      //   if (!checkUser) {
-      //     await this.authService.register({
-      //       username: options.user_id,
-      //       password: password,
-      //     });
-      //     await this.profileService.createProfile(options.user_id, {
-      //       email: '',
-      //       firstName: '',
-      //       lastName: '',
-      //       age: '',
-      //       gender: '',
-      //       address: '',
-      //     });
-      //     await this.accountsService.createAccount(options.user_id, {
-      //       accountNumber: '1',
-      //       balance: '0',
-      //     });
-      //     await this.sendMessageToUser(
-      //       options.chat_id,
-      //       'Register Successfully',
-      //     );
-      //   } else {
-      //     await this.sendMessageToUser(
-      //       options.chat_id,
-      //       'Registration Failed. User already exists',
-      //       {
-      //         reply_markup: JSON.stringify(this.reply_markup),
-      //       },
-      //     );
-      //   }
-      //   break;
+        break;
+
+      case 'listHistory':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
+            {
+              action: 'listHistory',
+              step: 1,
+              amount: '',
+              description: '',
+            },
+            30000,
+          );
+          const listHistory =
+            await this.transactionService.getTransactionSortId(options.id);
+          await ctx.reply(
+            `You have ${listHistory.length} transactions. How many transactions do you want to see (sorted from nearest to farthest)`,
+            Markup.forceReply(),
+          );
+        } else {
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
+          );
+        }
+        break;
+
+      case 'searchHistory':
+        if (data.action === '') {
+          await this.cache.set(
+            options.id,
+            {
+              action: 'searchHistory',
+              step: 1,
+              amount: '',
+              description: '',
+            },
+            30000,
+          );
+          await ctx.reply(
+            'enter the transaction id you want to search',
+            Markup.forceReply(),
+          );
+        } else {
+          await ctx.reply(
+            `You are in session ${data.action}, please complete the transaction or wait 30 seconds for the session to end`,
+          );
+        }
+        break;
 
       default:
-        return this.sendMessageToUser(
-          options.chat_id,
-          options.text_error,
-          query.message.reply_markup,
-        );
+        await ctx.reply(`I don't understand`);
+        await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+        break;
     }
-  };
-
-  sendMessageToUser = async (userId: number, message: string, option?: any) => {
-    return await this.bot.sendMessage(String(userId), message, option);
-  };
-
-  checkUser = async (username: string) => {
-    const user = await this.userService.findOneByUsername(username);
-    return !!user;
-  };
-
-  checkUsernameTelegram = async (usernameTelegram: string) => {
-    const user = await this.userService.findOneByUsernameTelegram(
-      usernameTelegram,
-    );
-    return !!user;
-  };
+  }
 
   registerUser = async (
     username: string,
@@ -748,6 +595,20 @@ export class BotTelegramService {
     await this.accountsService.createAccount(username, {
       accountNumber: '1',
       balance: '0',
+    });
+  };
+
+  formatDate = (date: string) => {
+    const getDate = new Date(date);
+
+    return getDate.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      timeZone: 'UTC',
     });
   };
 }

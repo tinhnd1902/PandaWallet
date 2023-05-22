@@ -32,11 +32,5 @@ export const replyMarkup = {
         callback_data: 'history',
       },
     ],
-    // [
-    //   {
-    //     text: 'Register to Telegram',
-    //     callback_data: 'register',
-    //   },
-    // ],
   ],
 };

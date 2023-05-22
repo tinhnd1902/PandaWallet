@@ -16,4 +16,9 @@ export class TransactionsController {
   async getTransaction(@Param('id') id: string) {
     return await this.transactionsService.getOneTransactionById(id);
   }
+
+  @Get()
+  async test(@Body() req: any) {
+    return this.transactionsService.getTransactionSortId(req.id);
+  }
 }
