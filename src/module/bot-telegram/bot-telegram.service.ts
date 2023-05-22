@@ -327,6 +327,11 @@ export class BotTelegramService {
             listHistory.length >= number
           ) {
             const newListHistory = listHistory.slice(0, number);
+            await ctx.reply(
+              `This is ${Number(number)}/${
+                listHistory.length
+              } of your total transaction`,
+            );
             for (const item of newListHistory) {
               await ctx.reply(`Transaction Id:\n ${item?.id}\n
                         Amount: ${item?.amount}\n
@@ -526,11 +531,11 @@ export class BotTelegramService {
         break;
 
       case 'history':
-        if (listHistory.length === 0)
-          return await ctx.reply('You have no transaction history');
         if (!checkIdTelegram) {
           return await ctx.reply(`Please type '/start' to get started.`);
         }
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
         if (data.action === '') {
           await ctx.reply('choose type history', this.keyboardMarkupHistory);
         } else {
@@ -542,11 +547,11 @@ export class BotTelegramService {
         break;
 
       case 'listHistory':
-        if (listHistory.length === 0)
-          return await ctx.reply('You have no transaction history');
         if (!checkIdTelegram) {
           return await ctx.reply(`Please type '/start' to get started.`);
         }
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -572,11 +577,11 @@ export class BotTelegramService {
         break;
 
       case 'searchHistory':
-        if (listHistory.length === 0)
-          return await ctx.reply('You have no transaction history');
         if (!checkIdTelegram) {
           return await ctx.reply(`Please type '/start' to get started.`);
         }
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
         if (data.action === '') {
           await this.cache.set(
             options.id,
