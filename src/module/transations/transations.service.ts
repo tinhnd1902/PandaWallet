@@ -36,6 +36,9 @@ export class TransactionsService {
       },
     });
 
+    const currentDate = new Date();
+
+    currentDate.setUTCHours(currentDate.getUTCHours() + 7);
     if (!checkSourceAccount) {
       throw new HttpException(
         'Invalid source account id',
@@ -56,7 +59,7 @@ export class TransactionsService {
       description,
       amount,
       type,
-      createdAt: new Date(),
+      createdAt: currentDate,
     });
     return this.transactionRepository.save(transaction);
   }
@@ -68,13 +71,17 @@ export class TransactionsService {
     const { amount, description, type, sourceAccount, destinationAccount } =
       createTransactionDto;
 
+    const currentDate = new Date();
+
+    currentDate.setUTCHours(currentDate.getUTCHours() + 7);
+
     const transaction = this.transactionRepository.create({
       sourceAccount: String(sourceAccount),
       destinationAccount: String(destinationAccount),
       description,
       amount,
       type,
-      createdAt: new Date(),
+      createdAt: currentDate,
     });
     return this.transactionRepository.save(transaction);
   }
