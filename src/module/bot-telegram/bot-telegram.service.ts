@@ -108,8 +108,8 @@ export class BotTelegramService {
     switch (data.action) {
       case 'deposit':
         if (data.step === 1) {
-          const depositAmount = parseFloat(options.contentText);
-          if (!isNaN(depositAmount) && Number(depositAmount) > 0) {
+          const depositAmount = options.contentText;
+          if (Number(depositAmount) && Number(depositAmount) > 0) {
             data.amount = options.contentText;
             data.step = 2;
             await this.cache.set(options.id, data, 30000);
@@ -148,8 +148,8 @@ export class BotTelegramService {
 
       case 'withdraw':
         if (data.step === 1) {
-          const withdrawAmount = parseFloat(options.contentText);
-          if (!isNaN(withdrawAmount) && Number(withdrawAmount) > 0) {
+          const withdrawAmount = options.contentText;
+          if (Number(withdrawAmount) && Number(withdrawAmount) > 0) {
             data.amount = options.contentText;
             data.step = 2;
             await this.cache.set(options.id, data, 30000);
@@ -317,18 +317,15 @@ export class BotTelegramService {
 
       case 'listHistory':
         if (data.step === 1) {
-          const number = parseFloat(options.contentText);
+          const number = options.contentText;
           const listHistory =
             await this.transactionService.getTransactionSortId(options.id);
           if (
-            !isNaN(number) &&
+            Number(number) &&
             Number(number) > 0 &&
             Number(number) < 100 &&
-            listHistory.length > number
+            listHistory.length >= number
           ) {
-            await ctx.reply(
-              `Here are your last ${number}/${listHistory.length} total transactions`,
-            );
             const newListHistory = listHistory.slice(0, number);
             for (const item of newListHistory) {
               await ctx.reply(`Transaction Id:\n ${item?.id}\n
@@ -374,9 +371,19 @@ export class BotTelegramService {
       amount: '',
       description: '',
     };
+    const checkIdTelegram = await this.userService.findOneByUsername(
+      options.id,
+    );
+
+    const listHistory = await this.transactionService.getTransactionSortId(
+      options.id,
+    );
 
     switch (options.data) {
       case 'deposit':
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -400,6 +407,9 @@ export class BotTelegramService {
         break;
 
       case 'withdraw':
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -423,6 +433,9 @@ export class BotTelegramService {
         break;
 
       case 'transferId':
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -446,6 +459,9 @@ export class BotTelegramService {
         break;
 
       case 'transferUsername':
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -469,6 +485,9 @@ export class BotTelegramService {
         break;
 
       case 'balance':
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -507,6 +526,11 @@ export class BotTelegramService {
         break;
 
       case 'history':
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await ctx.reply('choose type history', this.keyboardMarkupHistory);
         } else {
@@ -518,6 +542,11 @@ export class BotTelegramService {
         break;
 
       case 'listHistory':
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -543,6 +572,11 @@ export class BotTelegramService {
         break;
 
       case 'searchHistory':
+        if (listHistory.length === 0)
+          return await ctx.reply('You have no transaction history');
+        if (!checkIdTelegram) {
+          return await ctx.reply(`Please type '/start' to get started.`);
+        }
         if (data.action === '') {
           await this.cache.set(
             options.id,
@@ -567,7 +601,7 @@ export class BotTelegramService {
 
       default:
         await ctx.reply(`I don't understand`);
-        await ctx.reply('Can I help you, next?', this.keyboardMarkup);
+        await ctx.reply('Can I help you the follow ', this.keyboardMarkup);
         break;
     }
   }
